@@ -109,7 +109,7 @@ module ATSFatesInterfaceMod
    use FatesHistoryInterfaceMod, only : fates_history_interface_type
    use FatesRestartInterfaceMod, only : fates_restart_interface_type
 
-   use ChecksBalancesMod     , only : SummarizeNetFluxes, FATES_BGC_Carbon_BalanceCheck
+!   use ChecksBalancesMod     , only : SummarizeNetFluxes, FATES_BGC_Carbon_BalanceCheck
    use EDTypesMod            , only : ed_patch_type
    use FatesInterfaceMod     , only : hlm_numlevgrnd
    use EDMainMod             , only : ed_ecosystem_dynamics
@@ -125,7 +125,7 @@ module ATSFatesInterfaceMod
    use EDCanopyStructureMod  , only : canopy_summarization, update_hlm_dynamics
    use FatesPlantRespPhotosynthMod, only : FatesPlantRespPhotosynthDrive
    use EDAccumulateFluxesMod , only : AccumulateFluxes_ED
-   use EDPhysiologyMod       , only : flux_into_litter_pools
+!   use EDPhysiologyMod       , only : flux_into_litter_pools
    use FatesPlantHydraulicsMod, only : hydraulics_drive
    use FatesPlantHydraulicsMod, only : HydrSiteColdStart
    use FatesPlantHydraulicsMod, only : InitHydrSites
@@ -647,10 +647,10 @@ module ATSFatesInterfaceMod
       
        ! call subroutine to aggregate ED litter output fluxes and 
        ! package them for handing across interface
-       call flux_into_litter_pools(fates(nc)%nsites, &
-             fates(nc)%sites,  &
-             fates(nc)%bc_in,  &
-             fates(nc)%bc_out)
+       ! call flux_into_litter_pools(fates(nc)%nsites, &
+       !       fates(nc)%sites,  &
+       !       fates(nc)%bc_in,  &
+       !       fates(nc)%bc_out)
 
         ! ---------------------------------------------------------------------------------       ! Part III: Process FATES output into the dimensions and structures that are part
         ! of the HLMs API.  (column, depth, and litter fractions)
@@ -877,12 +877,12 @@ module ATSFatesInterfaceMod
 
        nld_si = fates(nc)%bc_in(site_id)%nlevdecomp
        
-       decomp_cpools_sourcesink_met(1:nld_si) = &
-            fates(nc)%bc_out(site_id)%FATES_c_to_litr_lab_c_col(1:nld_si) * dtime
-       decomp_cpools_sourcesink_cel(1:nld_si) = &
-            fates(nc)%bc_out(site_id)%FATES_c_to_litr_cel_c_col(1:nld_si) * dtime
-       decomp_cpools_sourcesink_lig(1:nld_si) = &
-            fates(nc)%bc_out(site_id)%FATES_c_to_litr_lig_c_col(1:nld_si) * dtime
+       ! decomp_cpools_sourcesink_met(1:nld_si) = &
+       !      fates(nc)%bc_out(site_id)%FATES_c_to_litr_lab_c_col(1:nld_si) * dtime
+       ! decomp_cpools_sourcesink_cel(1:nld_si) = &
+       !      fates(nc)%bc_out(site_id)%FATES_c_to_litr_cel_c_col(1:nld_si) * dtime
+       ! decomp_cpools_sourcesink_lig(1:nld_si) = &
+       !      fates(nc)%bc_out(site_id)%FATES_c_to_litr_lig_c_col(1:nld_si) * dtime
 
 
     end subroutine UpdateLitterFluxes_per_site
@@ -939,9 +939,9 @@ module ATSFatesInterfaceMod
              fates(nc)%bc_in)
 
         ! Canopy diagnostic outputs for HLM
-        call update_hlm_dynamics(fates(nc)%nsites, &
-             fates(nc)%sites,  &
-             fates(nc)%bc_out )
+        ! call update_hlm_dynamics(fates(nc)%nsites, &
+        !      fates(nc)%sites,  &
+        !      fates(nc)%bc_out )
         
 
     end subroutine wrap_update_atsfates_dyn

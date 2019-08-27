@@ -12,6 +12,8 @@ module ATSFatesParamInterfaceMod
   ! initialized.
   public :: FatesReadParameters
   public :: FatesReadPFTs
+  public :: FatesSetMasterProc
+  public :: FatesSetInputFiles  
   private :: ParametersFromNetCDF
   private :: SetParameterDimensions
   private :: GetUsedDimensionSizes
@@ -26,6 +28,24 @@ module ATSFatesParamInterfaceMod
        __FILE__
   
 contains
+
+ !-----------------------------------------------------------------------  
+ subroutine FatesSetMasterProc(proc) BIND(C)
+   integer (C_INT) , INTENT(IN)         :: proc
+
+   masterproc = proc
+   
+ end subroutine FatesSetMasterProc
+
+  subroutine FatesSetInputFiles(clm_file, fates_file) BIND(C)
+
+    CHARACTER(*, KIND=C_CHAR), INTENT(IN) :: clm_file
+    CHARACTER(*, KIND=C_CHAR), INTENT(IN) :: fates_file
+
+    fates_paramfile = fates_file
+    paramfile = clm_file
+ 
+ end subroutine FatesSetInputFiles
   
  !-----------------------------------------------------------------------
  subroutine FatesReadParameters() BIND(C)
@@ -84,7 +104,7 @@ contains
  end subroutine FatesReadParameters
 
  !-----------------------------------------------------------------------
- subroutine FatesReadPFTs(masterproc, paramfile, fates_paramfile) BIND(C)
+ subroutine FatesReadPFTs() BIND(C)
 
  !   use ats_varctl, only : use_fates, paramfile, fates_paramfile
    !   use spmdMod, only : masterproc
@@ -99,9 +119,9 @@ contains
    implicit none
 
 
-   integer (C_INT) , INTENT(IN)         :: masterproc
-   CHARACTER(*,KIND=C_CHAR), INTENT(IN) :: paramfile
-   CHARACTER(*,KIND=C_CHAR), INTENT(IN) :: fates_paramfile
+   ! integer (C_INT) , INTENT(IN)         :: masterproc
+   ! CHARACTER(*,KIND=C_CHAR), INTENT(IN) :: paramfile
+   ! CHARACTER(*,KIND=C_CHAR), INTENT(IN) :: fates_paramfile
    
 
    character(len=32)  :: subname = 'FatesReadPFTs'
@@ -255,7 +275,7 @@ contains
          write(fates_log(), *) 'atsfates_interfaceMod.F90:: reading '//trim(name)
          call readNcdio(ncid, name, dimension_shape, dimension_names, subname, data(1:size_dim_1, 1:size_dim_2))
          call fates_params%SetData(i, data(1:size_dim_1, 1:size_dim_2))
-         print *, data(1:size_dim_1, 1:size_dim_2)
+!         print *, data(1:size_dim_1, 1:size_dim_2)
       end if
    end do
    deallocate(data)
