@@ -1037,7 +1037,7 @@ contains
 
       use EDParamsMod, only : ED_val_history_sizeclass_bin_edges, ED_val_history_ageclass_bin_edges
       use EDParamsMod, only : ED_val_history_height_bin_edges
-      use CLMFatesParamInterfaceMod         , only : FatesReadParameters
+      use ATSFatesParamInterfaceMod         , only : FatesReadParameters
       implicit none
       
       logical,intent(in) :: use_fates    ! Is fates turned on?

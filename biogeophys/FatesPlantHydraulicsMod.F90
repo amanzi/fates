@@ -83,7 +83,7 @@ module FatesPlantHydraulicsMod
    use PRTGenericMod,          only : leaf_organ, fnrt_organ, sapw_organ
    use PRTGenericMod,          only : store_organ, repro_organ, struct_organ
    
-   use clm_time_manager  , only : get_step_size, get_nstep
+!   use clm_time_manager  , only : get_step_size, get_nstep
 
    use EDPftvarcon, only : EDPftvarcon_inst
 
@@ -1444,7 +1444,7 @@ contains
      integer :: nstep !number of time steps
 
      !for debug only
-     nstep = get_nstep()
+     !nstep = get_nstep()
 
      do s = 1,nsites
         bc_out(s)%plant_stored_h2o_si = 0.0_r8
