@@ -14,8 +14,8 @@ set(ADDITIONAL_MAKE_CLEAN_FILES build)
 
 get_filename_component (default_prefix "." ABSOLUTE)
 
-include_directories(${NETCDF_DIR}
-                    ${PIO_DIR})
+include_directories(${NETCDF_INCLUDE_DIR}
+                    ${PIO_INCLUDE_DIR})
 
 set(share_sources
 #  shr_infnan_mod.F90        

@@ -1,7 +1,7 @@
 #HOME := $(shell /bin/pwd)
  
-CC          = mpicc
-F77	    = mpif90
+CC          = icc
+F77	    = ifort
 
 
 
@@ -22,12 +22,12 @@ SYSHOME  =  $(HOME)
 INCLDIR  = 
 
 
-LIBDIRS  = -L../install/lib/ -L$(NETCDF_DIR)/lib/ -L$(MPI_HOME)/lib -L$(HOME)/Coastal/ParallelIO/install/lib/ -L${HOME}/Coastal/pnetcdf-1.11.2/install/lib
+LIBDIRS  = -L../install/lib/ -L$(NETCDF_DIR)/lib/ -L$(MPI_HOME)/lib -L${PNETCDF_DIR}/lib/ -L${PIO_DIR}/lib/
 
 
 ##################################################################
 #Libraries
-LIBS = -lfates -lshared  -lpiof -lpioc -lpnetcdf -lnetcdf -lnetcdff -lgptl -lmpi_mpifh -lmpi -lifcore -lm
+LIBS = -lfates -lshared  -lpiof -lpioc -lpnetcdf -lnetcdf -lnetcdff  -lgptl  -lhdf5_hl -lhdf5 -lz -lmpi_mpifh -lmpi -lifcore -lm
 
 
 

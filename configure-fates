@@ -9,9 +9,9 @@ mkdir build
 cd build
 
 #UPDATE
-NETCDF_DIR=/home/scratch/ascem/amanzi/tpls/install/Ubuntu-16.04-x86_64/openmpi-2.1.1-intel-17.0.1/Release-0.95.0-static/
-#UPDATE
-pio=/nh/u/dasvyat/Coastal/ParallelIO/install/
+#NETCDF_DIR=/home/scratch/ascem/amanzi/tpls/install/Ubuntu-16.04-x86_64/openmpi-2.1.1-intel-17.0.1/Release-0.95.0-static/
+#pio=/nh/u/dasvyat/Coastal/ParallelIO/install/
+# Define env variables NETCDF_DIR, PIO_DIR, ATS_FATES_DIR
 
 cmake \
       -D CMAKE_Fortran_COMPILER=${FC}\
@@ -19,7 +19,7 @@ cmake \
       -D CMAKE_CXX_COMPILER=${CXX} \
       -D CMAKE_BUILD_TYPE=Debug\
       -D CMAKE_INSTALL_PREFIX=../install \
-      -D NETCDF_DIR=${NETCDF_DIR}/include/ \
-      -D PIO_DIR=${pio}/include/ \
-      /nh/u/dasvyat/Coastal/ngeet_fates/
+      -D NETCDF_INCLUDE_DIR=${NETCDF_DIR}/include/ \
+      -D PIO_INCLUDE_DIR=${PIO_DIR}/include/ \
+      ${ATS_FATES_DIR}
        
