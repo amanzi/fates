@@ -1017,7 +1017,7 @@ contains
 
     ! ===================================================================================
     
-    subroutine set_fates_global_elements(use_fates)
+    subroutine set_fates_global_elements() BIND(C)
 
        ! --------------------------------------------------------------------------------
        !
@@ -1040,115 +1040,115 @@ contains
       use ATSFatesParamInterfaceMod         , only : FatesReadParameters
       implicit none
       
-      logical,intent(in) :: use_fates    ! Is fates turned on?
+!      logical,intent(in) :: use_fates    ! Is fates turned on?
       
       integer :: i
       
-      if (use_fates) then
+!      if (use_fates) then
 
-         ! first read the non-PFT parameters
-         call FatesReadParameters()
+      ! first read the non-PFT parameters
+      call FatesReadParameters()
 
-         ! Identify the number of PFTs by evaluating a pft array
-         ! Using wood density as that is not expected to be deprecated any time soon
+      ! Identify the number of PFTs by evaluating a pft array
+      ! Using wood density as that is not expected to be deprecated any time soon
 
-         if(lbound(EDPftvarcon_inst%wood_density(:),dim=1) .eq. 0 ) then
-            numpft = size(EDPftvarcon_inst%wood_density,dim=1)-1
-         elseif(lbound(EDPftvarcon_inst%wood_density(:),dim=1) .eq. 1 ) then
-            numpft = size(EDPftvarcon_inst%wood_density,dim=1)
-         else
-            write(fates_log(), *) 'While assessing the number of FATES PFTs,'
-            write(fates_log(), *) 'it was found that the lower bound was neither 0 or 1?'
-            call endrun(msg=errMsg(sourcefile, __LINE__))
-         end if
-
-         if(numpft>maxpft) then
-            write(fates_log(), *) 'The number of PFTs dictated by the FATES parameter file'
-            write(fates_log(), *) 'is larger than the maximum allowed. Increase the FATES parameter constant'
-            write(fates_log(), *) 'FatesInterfaceMod.F90:maxpft accordingly'
-            call endrun(msg=errMsg(sourcefile, __LINE__))
-         end if
-
-         ! Identify the number of leaf age-classes
-         
-         if( (lbound(EDPftvarcon_inst%leaf_long(:,:),dim=2) .eq. 0) .or. &
-             (ubound(EDPftvarcon_inst%leaf_long(:,:),dim=2) .eq. 0) ) then
-            write(fates_log(), *) 'While assessing the number of FATES leaf age classes,'
-            write(fates_log(), *) 'The second dimension of leaf_long was 0?'
-            call endrun(msg=errMsg(sourcefile, __LINE__))
-         else
-            nleafage = size(EDPftvarcon_inst%leaf_long,dim=2)
-         end if
-         
-         ! These values are used to define the restart file allocations and general structure
-         ! of memory for the cohort arrays
-         
-         fates_maxElementsPerPatch = max(maxCohortsPerPatch, ndcmpy*numlevsoil_max ,ncwd*numlevsoil_max)
-
-         if (maxPatchesPerSite * fates_maxElementsPerPatch <  numWaterMem) then
-            write(fates_log(), *) 'By using such a tiny number of maximum patches and maximum cohorts'
-            write(fates_log(), *) ' this could create problems for indexing in restart files'
-            write(fates_log(), *) ' The multiple of the two has to be greater than numWaterMem'
-            call endrun(msg=errMsg(sourcefile, __LINE__))
-         end if
-         
-         fates_maxElementsPerSite = maxPatchesPerSite * fates_maxElementsPerPatch
-
-         ! Identify number of size and age class bins for history output
-         ! assume these arrays are 1-indexed
-         nlevsclass = size(ED_val_history_sizeclass_bin_edges,dim=1)
-         nlevage = size(ED_val_history_ageclass_bin_edges,dim=1)
-         nlevheight = size(ED_val_history_height_bin_edges,dim=1)
-
-         ! do some checks on the size, age, and height bin arrays to make sure they make sense:
-         ! make sure that all start at zero, and that both are monotonically increasing
-         if ( ED_val_history_sizeclass_bin_edges(1) .ne. 0._r8 ) then
-            write(fates_log(), *) 'size class bins specified in parameter file must start at zero'
-            call endrun(msg=errMsg(sourcefile, __LINE__))
-         endif
-         if ( ED_val_history_ageclass_bin_edges(1) .ne. 0._r8 ) then
-            write(fates_log(), *) 'age class bins specified in parameter file must start at zero'
-            call endrun(msg=errMsg(sourcefile, __LINE__))
-         endif
-         if ( ED_val_history_height_bin_edges(1) .ne. 0._r8 ) then
-            write(fates_log(), *) 'height class bins specified in parameter file must start at zero'
-            call endrun(msg=errMsg(sourcefile, __LINE__))
-         endif
-         do i = 2,nlevsclass
-            if ( (ED_val_history_sizeclass_bin_edges(i) - ED_val_history_sizeclass_bin_edges(i-1)) .le. 0._r8) then
-               write(fates_log(), *) 'size class bins specified in parameter file must be monotonically increasing'
-               call endrun(msg=errMsg(sourcefile, __LINE__))
-            end if
-         end do
-         do i = 2,nlevage
-            if ( (ED_val_history_ageclass_bin_edges(i) - ED_val_history_ageclass_bin_edges(i-1)) .le. 0._r8) then
-               write(fates_log(), *) 'age class bins specified in parameter file must be monotonically increasing'
-               call endrun(msg=errMsg(sourcefile, __LINE__))
-            end if
-         end do
-         do i = 2,nlevheight
-            if ( (ED_val_history_height_bin_edges(i) - ED_val_history_height_bin_edges(i-1)) .le. 0._r8) then
-               write(fates_log(), *) 'height class bins specified in parameter file must be monotonically increasing'
-               call endrun(msg=errMsg(sourcefile, __LINE__))
-            end if
-         end do
-
-         ! Set Various Mapping Arrays used in history output as well
-         ! These will not be used if use_ed or use_fates is false
-         call fates_history_maps()
-
-
+      if(lbound(EDPftvarcon_inst%wood_density(:),dim=1) .eq. 0 ) then
+         numpft = size(EDPftvarcon_inst%wood_density,dim=1)-1
+      elseif(lbound(EDPftvarcon_inst%wood_density(:),dim=1) .eq. 1 ) then
+         numpft = size(EDPftvarcon_inst%wood_density,dim=1)
       else
-         ! If we are not using FATES, the cohort dimension is still
-         ! going to be initialized, lets set it to the smallest value
-         ! possible so that the dimensioning info takes up little space
+         write(fates_log(), *) 'While assessing the number of FATES PFTs,'
+         write(fates_log(), *) 'it was found that the lower bound was neither 0 or 1?'
+         call endrun(msg=errMsg(sourcefile, __LINE__))
+      end if
 
-         fates_maxElementsPerPatch = 1
+      if(numpft>maxpft) then
+         write(fates_log(), *) 'The number of PFTs dictated by the FATES parameter file'
+         write(fates_log(), *) 'is larger than the maximum allowed. Increase the FATES parameter constant'
+         write(fates_log(), *) 'FatesInterfaceMod.F90:maxpft accordingly'
+         call endrun(msg=errMsg(sourcefile, __LINE__))
+      end if
+
+      ! Identify the number of leaf age-classes
+
+      if( (lbound(EDPftvarcon_inst%leaf_long(:,:),dim=2) .eq. 0) .or. &
+           (ubound(EDPftvarcon_inst%leaf_long(:,:),dim=2) .eq. 0) ) then
+         write(fates_log(), *) 'While assessing the number of FATES leaf age classes,'
+         write(fates_log(), *) 'The second dimension of leaf_long was 0?'
+         call endrun(msg=errMsg(sourcefile, __LINE__))
+      else
+         nleafage = size(EDPftvarcon_inst%leaf_long,dim=2)
+      end if
+
+      ! These values are used to define the restart file allocations and general structure
+      ! of memory for the cohort arrays
+
+      fates_maxElementsPerPatch = max(maxCohortsPerPatch, ndcmpy*numlevsoil_max ,ncwd*numlevsoil_max)
+
+      if (maxPatchesPerSite * fates_maxElementsPerPatch <  numWaterMem) then
+         write(fates_log(), *) 'By using such a tiny number of maximum patches and maximum cohorts'
+         write(fates_log(), *) ' this could create problems for indexing in restart files'
+         write(fates_log(), *) ' The multiple of the two has to be greater than numWaterMem'
+         call endrun(msg=errMsg(sourcefile, __LINE__))
+      end if
+
+      fates_maxElementsPerSite = maxPatchesPerSite * fates_maxElementsPerPatch
+
+      ! Identify number of size and age class bins for history output
+      ! assume these arrays are 1-indexed
+      nlevsclass = size(ED_val_history_sizeclass_bin_edges,dim=1)
+      nlevage = size(ED_val_history_ageclass_bin_edges,dim=1)
+      nlevheight = size(ED_val_history_height_bin_edges,dim=1)
+
+      ! do some checks on the size, age, and height bin arrays to make sure they make sense:
+      ! make sure that all start at zero, and that both are monotonically increasing
+      if ( ED_val_history_sizeclass_bin_edges(1) .ne. 0._r8 ) then
+         write(fates_log(), *) 'size class bins specified in parameter file must start at zero'
+         call endrun(msg=errMsg(sourcefile, __LINE__))
+      endif
+      if ( ED_val_history_ageclass_bin_edges(1) .ne. 0._r8 ) then
+         write(fates_log(), *) 'age class bins specified in parameter file must start at zero'
+         call endrun(msg=errMsg(sourcefile, __LINE__))
+      endif
+      if ( ED_val_history_height_bin_edges(1) .ne. 0._r8 ) then
+         write(fates_log(), *) 'height class bins specified in parameter file must start at zero'
+         call endrun(msg=errMsg(sourcefile, __LINE__))
+      endif
+      do i = 2,nlevsclass
+         if ( (ED_val_history_sizeclass_bin_edges(i) - ED_val_history_sizeclass_bin_edges(i-1)) .le. 0._r8) then
+            write(fates_log(), *) 'size class bins specified in parameter file must be monotonically increasing'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+      end do
+      do i = 2,nlevage
+         if ( (ED_val_history_ageclass_bin_edges(i) - ED_val_history_ageclass_bin_edges(i-1)) .le. 0._r8) then
+            write(fates_log(), *) 'age class bins specified in parameter file must be monotonically increasing'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+      end do
+      do i = 2,nlevheight
+         if ( (ED_val_history_height_bin_edges(i) - ED_val_history_height_bin_edges(i-1)) .le. 0._r8) then
+            write(fates_log(), *) 'height class bins specified in parameter file must be monotonically increasing'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+      end do
+
+      ! Set Various Mapping Arrays used in history output as well
+      ! These will not be used if use_ed or use_fates is false
+      call fates_history_maps()
+
+
+      ! else
+      !    ! If we are not using FATES, the cohort dimension is still
+      !    ! going to be initialized, lets set it to the smallest value
+      !    ! possible so that the dimensioning info takes up little space
+
+      !    fates_maxElementsPerPatch = 1
       
-         fates_maxElementsPerSite = 1
+      !    fates_maxElementsPerSite = 1
          
 
-      end if
+      ! end if
 
 
     end subroutine set_fates_global_elements
@@ -1579,21 +1579,21 @@ contains
             end if
             call endrun(msg=errMsg(sourcefile, __LINE__))
          elseif(hlm_max_patch_per_site < maxPatchesPerSite ) then
-            if (fates_global_verbose()) then
+            !if (fates_global_verbose()) then
                write(fates_log(), *) 'FATES is trying to allocate space for more patches per site, than the HLM has space for.'
                write(fates_log(), *) 'hlm_max_patch_per_site (HLM side): ', hlm_max_patch_per_site
                write(fates_log(), *) 'maxPatchesPerSite (FATES side): ', maxPatchesPerSite
                write(fates_log(), *)
-            end if
+            !end if
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
-         if(hlm_parteh_mode .eq. unset_int) then
-            if (fates_global_verbose()) then
-               write(fates_log(), *) 'switch deciding which plant reactive transport model to use is unset, hlm_parteh_mode, exiting'
-            end if
-            call endrun(msg=errMsg(sourcefile, __LINE__))
-         end if
+         ! if(hlm_parteh_mode .eq. unset_int) then
+         !    if (fates_global_verbose()) then
+         !       write(fates_log(), *) 'switch deciding which plant reactive transport model to use is unset, hlm_parteh_mode, exiting'
+         !    end if
+         !    call endrun(msg=errMsg(sourcefile, __LINE__))
+         ! end if
 
          if(hlm_use_vertsoilc .eq. unset_int) then
             if (fates_global_verbose()) then

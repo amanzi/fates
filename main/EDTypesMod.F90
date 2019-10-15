@@ -19,7 +19,7 @@ module EDTypesMod
   private               ! By default everything is private
   save
 
-  integer, parameter, public :: maxPatchesPerSite  = 14   ! maximum number of patches to live on a site
+  integer, parameter, public :: maxPatchesPerSite  = 10   ! maximum number of patches to live on a site
   integer, parameter, public :: maxPatchesPerSite_by_disttype(n_anthro_disturbance_categories)  = &
                                                      (/ 10, 4 /)  !!! MUST SUM TO maxPatchesPerSite !!!
   integer, parameter, public :: maxCohortsPerPatch = 100  ! maximum number of cohorts per patch

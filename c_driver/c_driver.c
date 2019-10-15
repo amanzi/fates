@@ -24,6 +24,7 @@ extern void fatessetmasterproc(int*);
 extern void fatessetinputfiles(CFI_cdesc_t * clm, CFI_cdesc_t * fates);
 extern void fatesreadparameters();
 extern void fatesreadpfts();
+extern void set_fates_global_elements();
 
 
 extern void dynamics_driv_per_site(int*, int*, site_info*, double*,
@@ -43,7 +44,7 @@ main()
   int retval;
  
   
-  char *fates_file = "../parameter_files/fates_params_c052019.nc";
+  char *fates_file = "../parameter_files/fates_params_default_c20191007.nc";
   char *clm_file = "../parameter_files/clm_params_c180301.nc";
 
   retval = CFI_establish(&fatesdesc, fates_file, CFI_attribute_other, CFI_type_char, strlen(fates_file), 0, NULL);
@@ -69,6 +70,29 @@ main()
   }
 
   /* Initialization */
+  /*  ! Read in FATES parameter values early in the call sequence as well
+    ! The PFT file, specifically, will dictate how many pfts are used
+    ! in fates, and this will influence the amount of memory we
+    ! request from the model, which is relevant in set_fates_global_elements()*/
+  
+  fatesreadpfts();
+
+  /*   ------------------------------------------------------------------------
+     Ask Fates to evaluate its own dimensioning needs.
+     This determines the total amount of space it requires in its largest
+     dimension.  We are currently calling that the "cohort" dimension, but
+     it is really a utility dimension that captures the models largest
+     size need.
+     Sets:
+     fates_maxElementsPerPatch
+     fates_maxElementsPerSite (where a site is roughly equivalent to a column)
+     
+     (Note: fates_maxELementsPerSite is the critical variable used by CLM
+     to allocate space)
+     ------------------------------------------------------------------------*/
+
+
+  set_fates_global_elements();
 
   /* Preliminary initialization of FATES */
   init_ats_fates(&num_sites, site);

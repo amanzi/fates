@@ -933,10 +933,10 @@ module ATSFatesInterfaceMod
           fates(nc)%bc_in(s)%frac_sno_eff_si = 0.0_r8  !frac_sno_eff(c)
        end do
        
-        ! Canopy diagnostics for FATES
-        call canopy_summarization(fates(nc)%nsites, &
-             fates(nc)%sites,  &
-             fates(nc)%bc_in)
+       ! Canopy diagnostics for FATES
+       call canopy_summarization(fates(nc)%nsites, &
+            fates(nc)%sites,  &
+            fates(nc)%bc_in)
 
         ! Canopy diagnostic outputs for HLM
         ! call update_hlm_dynamics(fates(nc)%nsites, &

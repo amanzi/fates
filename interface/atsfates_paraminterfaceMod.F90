@@ -107,7 +107,7 @@ contains
  subroutine FatesReadPFTs() BIND(C)
 
  !   use ats_varctl, only : use_fates, paramfile, fates_paramfile
-   !   use spmdMod, only : masterproc
+ !   use spmdMod, only : masterproc
 
 
    use FatesParametersInterface, only : fates_parameters_type
