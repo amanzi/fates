@@ -22,12 +22,12 @@ SYSHOME  =  $(HOME)
 INCLDIR  = 
 
 
-LIBDIRS  = -L../install/lib/ -L$(NETCDF_DIR)/lib/ -L$(MPI_HOME)/lib -L${PNETCDF_DIR}/lib/ -L${PIO_DIR}/lib/
+LIBDIRS  = -L$(ATSFATES_DIR)/install/lib/ -L$(NETCDF_DIR)/lib/ -L$(MPI_HOME)/lib -L${PNETCDF_DIR}/lib/ -L${PIO_DIR}/lib/
 
 
 ##################################################################
 #Libraries
-LIBS = -lfates -lshared  -lpiof -lpioc -lpnetcdf -lnetcdf -lnetcdff  -lgptl  -lhdf5_hl -lhdf5 -lz -lmpi_mpifh -lmpi -lifcore -lm
+LIBS = -lparteh -lfates -lshared  -lparteh -lpiof -lpioc -lpnetcdf -lnetcdf -lnetcdff  -lgptl  -lhdf5_hl -lhdf5 -lz -lmpi_mpifh -lmpi -lifcore -lm
 
 
 

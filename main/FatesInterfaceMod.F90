@@ -635,7 +635,7 @@ contains
     logical, intent(in) :: global_verbose
 
     call FatesGlobalsInit(log_unit,global_verbose)
-    
+       
   end subroutine FatesInterfaceInit
 
    ! ====================================================================================
@@ -1045,7 +1045,7 @@ contains
       integer :: i
       
 !      if (use_fates) then
-
+      hlm_parteh_mode = 1
       ! first read the non-PFT parameters
       call FatesReadParameters()
 
@@ -1579,21 +1579,21 @@ contains
             end if
             call endrun(msg=errMsg(sourcefile, __LINE__))
          elseif(hlm_max_patch_per_site < maxPatchesPerSite ) then
-            !if (fates_global_verbose()) then
+            if (fates_global_verbose()) then
                write(fates_log(), *) 'FATES is trying to allocate space for more patches per site, than the HLM has space for.'
                write(fates_log(), *) 'hlm_max_patch_per_site (HLM side): ', hlm_max_patch_per_site
                write(fates_log(), *) 'maxPatchesPerSite (FATES side): ', maxPatchesPerSite
                write(fates_log(), *)
-            !end if
+            end if
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
-         ! if(hlm_parteh_mode .eq. unset_int) then
-         !    if (fates_global_verbose()) then
-         !       write(fates_log(), *) 'switch deciding which plant reactive transport model to use is unset, hlm_parteh_mode, exiting'
-         !    end if
-         !    call endrun(msg=errMsg(sourcefile, __LINE__))
-         ! end if
+         if(hlm_parteh_mode .eq. unset_int) then
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'switch deciding which plant reactive transport model to use is unset, hlm_parteh_mode, exiting'
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
 
          if(hlm_use_vertsoilc .eq. unset_int) then
             if (fates_global_verbose()) then
@@ -1776,14 +1776,14 @@ contains
       ! A debug like print flag is contained in each routine
       ! -----------------------------------------------------
 
-      logical,intent(in) :: masterproc
+     logical,intent(in) :: masterproc
 
-      call FatesReportPFTParams(masterproc)
-      call FatesReportParams(masterproc)
-      call FatesCheckParams(masterproc,hlm_parteh_mode)
-      call SpitFireCheckParams(masterproc)
+     call FatesReportPFTParams(masterproc)
+     call FatesReportParams(masterproc)
+     call FatesCheckParams(masterproc,hlm_parteh_mode)
+     call SpitFireCheckParams(masterproc)
 
-      return
+     return
    end subroutine FatesReportParameters
 
    ! ====================================================================================

@@ -105,7 +105,8 @@ module ATSFatesInterfaceMod
    use FatesInterfaceMod     , only : allocate_bcout
    use FatesInterfaceMod     , only : SetFatesTime
    use FatesInterfaceMod     , only : set_fates_ctrlparms
-
+   use FatesInterfaceMod     , only : InitPARTEHGlobals
+   
    use FatesHistoryInterfaceMod, only : fates_history_interface_type
    use FatesRestartInterfaceMod, only : fates_restart_interface_type
 
@@ -153,6 +154,18 @@ module ATSFatesInterfaceMod
       REAL(C_DOUBLE) :: temp_veg24_patch
       REAL(C_DOUBLE) :: latdeg, londeg      
    end type SiteInfo
+
+   type, public,  bind (C) :: bounds_type
+      integer (C_INT) :: begg, endg       ! beginning and ending gridcell index
+      integer (C_INT):: begl, endl       ! beginning and ending landunit index
+      integer (C_INT):: begc, endc       ! beginning and ending column index
+      integer (C_INT):: begp, endp       ! beginning and ending pft index
+      integer (C_INT):: lbj, ubj
+      integer (C_INT):: begCohort, endCohort ! beginning and ending cohort indices
+
+      integer (C_INT):: level            ! whether defined on the proc or clump level
+      integer (C_INT):: clump_index      ! if defined on the clump level, this gives the clump index
+   end type bounds_type
 
 !   type, bind (C) :: CanopyState_type
 
@@ -288,6 +301,7 @@ module ATSFatesInterfaceMod
       integer                                        :: pass_planthydro
       integer                                        :: pass_inventory_init
       integer                                        :: pass_is_restart
+      integer                                        :: fates_parteh_mode
       integer                                        :: nc        ! thread index
       integer                                        :: s         ! FATES site index
       integer                                        :: c         ! HLM column index
@@ -301,8 +315,7 @@ module ATSFatesInterfaceMod
 
 
      
-      write(*, *) "Enter Init fates"
-     
+      !write(*, *) "Enter Init fates"     
       DEBUG = .true.
             
       ! Initialize the FATES communicators with the HLM
@@ -319,14 +332,13 @@ module ATSFatesInterfaceMod
       pass_ed_st3 = 0
       pass_logging = 0
       pass_ed_prescribed_phys = 0
+      fates_parteh_mode = 1
       
       pass_planthydro = 0
       pass_inventory_init = 0
-      pass_masterproc = 1
+      pass_masterproc = 0
       fates_inventory_ctrl_filename=""
-
-
-      
+     
       call FatesInterfaceInit(iulog, verbose_output)
 
       nclumps = 1 ! get_proc_clumps()
@@ -357,10 +369,8 @@ module ATSFatesInterfaceMod
       call set_fates_ctrlparms('soilwater_ipedof',ival=soilwater_ipedof)
       call set_fates_ctrlparms('max_patch_per_site',ival=max_patch_per_site) ! FATES IGNORES
                                                                           ! AND DOESNT TOUCH
-                                                                          ! THE BARE SOIL PATCH
-
-      
-
+                                                                          ! THE BARE SOIL PATCH      
+      call set_fates_ctrlparms('parteh_mode', ival=1)
 
       call set_fates_ctrlparms('is_restart',ival=pass_is_restart)
       call set_fates_ctrlparms('use_vertsoilc',ival=pass_vertsoilc)     
@@ -452,21 +462,22 @@ module ATSFatesInterfaceMod
       end do
       !$OMP END PARALLEL DO
 
-      ! call FatesReportParameters(masterproc)
-
-      write(*, *) "Exit Init fates"
+      !write(*, *) "Exit Init fates"
 
     end subroutine init_ats_fates
 
 
     subroutine init_soil_depths(nc, site_id, site_info, zi, dz, z, dzsoi_decomp) BIND(C)
-    
+
+      use FatesInterfaceMod, only : FatesReportParameters
+      
       ! Input Arguments
       integer(C_INT),intent(in)            :: nc   ! Clump
       integer(C_INT),intent(in)            :: site_id   ! Site_id
       type(SiteInfo),intent(in)            :: site_info
       real(C_DOUBLE), intent(in)           :: dzsoi_decomp(site_info%nlevdecomp)
       real(C_DOUBLE), intent(in)           :: zi(site_info%nlevbed + 1), dz(site_info%nlevbed), z(site_info%nlevbed)
+
       ! Locals
       integer :: s  ! site index
       integer :: c  ! column index
@@ -474,7 +485,7 @@ module ATSFatesInterfaceMod
       integer :: nlevsoil
       integer :: nlevdecomp
 
-      write(*, *) "Enter Init_soil_depth"
+      !write(*, *) "Enter Init_soil_depth"
 
       if (site_id.le.0.or.site_id.gt.fates(nc)%nsites) then
          write(iulog,*) "Incorrect site_id is provides", site_id
@@ -500,7 +511,11 @@ module ATSFatesInterfaceMod
       fates(nc)%bc_in(site_id)%z_sisl(1:nlevsoil)     = z(1:nlevsoil)
       fates(nc)%bc_in(site_id)%dz_decomp_sisl(1:nlevdecomp) = dzsoi_decomp(1:nlevdecomp)
 
-      write(*, *) "Exit Init_soil_depth fates"
+      !call init_history_io(bounds_proc)      
+      ! ! Report Fates Parameters (debug flag in lower level routines)
+      !call FatesReportParameters()
+      
+      !write(*, *) "Exit Init_soil_depth fates"
       return
     end subroutine init_soil_depths
 
@@ -671,13 +686,13 @@ module ATSFatesInterfaceMod
 !                                          canopystate_inst, &
 !                                          frictionvel_inst)
       
-!       ! ---------------------------------------------------------------------------------
-!       ! Part IV: 
-!       ! Update history IO fields that depend on ecosystem dynamics
-!       ! ---------------------------------------------------------------------------------
-!       call this%fates_hist%update_history_dyn( nc,                    &
-!                                               this%fates(nc)%nsites, &
-!                                               this%fates(nc)%sites) 
+       ! ---------------------------------------------------------------------------------
+       ! Part IV: 
+       ! Update history IO fields that depend on ecosystem dynamics
+       ! ---------------------------------------------------------------------------------
+       ! call fates_hist%update_history_dyn( nc,                    &
+       !                                     fates(nc)%nsites, &
+       !                                     fates(nc)%sites) 
      
       return
     end subroutine dynamics_driv_per_site
@@ -1218,6 +1233,7 @@ module ATSFatesInterfaceMod
 
 !      !$OMP PARALLEL DO PRIVATE (nc,bounds_clump,s,c,j,vol_ice,eff_porosity)
 
+      call InitPARTEHGlobals()      
         
       if ( fates(nc)%nsites>0 ) then
 
@@ -1920,300 +1936,300 @@ module ATSFatesInterfaceMod
 
 !  ! ======================================================================================
 
-!  subroutine init_history_io(this,bounds_proc)
+  subroutine init_history_io()
 
-!    use histFileMod, only : hist_addfld1d, hist_addfld2d, hist_addfld_decomp 
+   !use histFileMod, only : hist_addfld1d, hist_addfld2d, hist_addfld_decomp 
 
-!    use FatesConstantsMod, only : fates_short_string_length, fates_long_string_length
-!    use FatesIOVariableKindMod, only : patch_r8, patch_ground_r8, patch_size_pft_r8
-!    use FatesIOVariableKindMod, only : site_r8, site_ground_r8, site_size_pft_r8
-!    use FatesIOVariableKindMod, only : site_size_r8, site_pft_r8, site_age_r8
-!    use FatesIOVariableKindMod, only : site_fuel_r8, site_cwdsc_r8, site_scag_r8
-!    use FatesIOVariableKindMod, only : site_scagpft_r8, site_agepft_r8
-!    use FatesIOVariableKindMod, only : site_height_r8
-!    use FatesIOVariableKindMod, only : site_can_r8, site_cnlf_r8, site_cnlfpft_r8
-!    use FatesIODimensionsMod, only : fates_bounds_type
+   use FatesConstantsMod, only : fates_short_string_length, fates_long_string_length
+   use FatesIOVariableKindMod, only : patch_r8, patch_ground_r8, patch_size_pft_r8
+   use FatesIOVariableKindMod, only : site_r8, site_ground_r8, site_size_pft_r8
+   use FatesIOVariableKindMod, only : site_size_r8, site_pft_r8, site_age_r8
+   use FatesIOVariableKindMod, only : site_fuel_r8, site_cwdsc_r8, site_scag_r8
+   use FatesIOVariableKindMod, only : site_scagpft_r8, site_agepft_r8
+   use FatesIOVariableKindMod, only : site_height_r8
+   use FatesIOVariableKindMod, only : site_can_r8, site_cnlf_r8, site_cnlfpft_r8
+   use FatesIODimensionsMod, only : fates_bounds_type
 
 
-!    ! Arguments
-!    class(hlm_fates_interface_type), intent(inout) :: this
-!    type(bounds_type),intent(in)                   :: bounds_proc  ! Currently "proc"
+ !   ! Arguments
+ !   class(hlm_fates_interface_type), intent(inout) :: this
+ !  type(bounds_type),intent(in)                   :: bounds_proc  ! Currently "proc"
    
    
-!    ! Locals
-!    type(bounds_type)                              :: bounds_clump
-!    integer :: nvar  ! number of IO variables found
-!    integer :: ivar  ! variable index 1:nvar
-!    integer :: nc    ! thread counter 1:nclumps
-!    integer :: nclumps ! number of threads on this proc
-!    integer :: s     ! FATES site index
-!    integer :: c     ! ALM/ATS column index
-!    character(len=fates_short_string_length) :: dim2name
-!    character(len=fates_long_string_length) :: ioname
-!    integer :: d_index, dk_index
+   ! Locals
+ !  type(bounds_type)                              :: bounds_clump
+   integer :: nvar  ! number of IO variables found
+   integer :: ivar  ! variable index 1:nvar
+   integer :: nc    ! thread counter 1:nclumps
+   integer :: nclumps ! number of threads on this proc
+   integer :: s     ! FATES site index
+   integer :: c     ! ALM/ATS column index
+   character(len=fates_short_string_length) :: dim2name
+   character(len=fates_long_string_length) :: ioname
+   integer :: d_index, dk_index
    
-!    type(fates_bounds_type) :: fates_bounds
-!    type(fates_bounds_type) :: fates_clump
+   type(fates_bounds_type) :: fates_bounds
+   type(fates_bounds_type) :: fates_clump
 
-!    ! This routine initializes the types of output variables
-!    ! not the variables themselves, just the types
-!    ! ---------------------------------------------------------------------------------
+ !   ! This routine initializes the types of output variables
+ !   ! not the variables themselves, just the types
+ !   ! ---------------------------------------------------------------------------------
 
-!    nclumps = get_proc_clumps()
+    nclumps = 1   !get_proc_clumps()
 
-!    ! ------------------------------------------------------------------------------------
-!    ! PART I: Set FATES DIMENSIONING INFORMATION
-!    !       
-!    ! -------------------------------------------------------------------------------
-!    ! Those who wish add variables that require new dimensions, please
-!    ! see FATES: FatesHistoryInterfaceMod.F90.  Dimension types are defined at the top of the
-!    ! module, and a new explicitly named instance of that type should be created.
-!    ! With this new dimension, a new output type/kind can contain that dimension.
-!    ! A new type/kind can be added to the dim_kinds structure, which defines its members
-!    ! in created in init_dim_kinds_maps().  Make sure to increase the size of fates_num_dim_kinds.
-!    ! A type/kind of output is defined by the data type (ie r8,int,..)
-!    ! and the dimensions.  Keep in mind that 3D variables (or 4D if you include time)
-!    ! are not really supported in ATS/ALM right now.  There are ways around this
-!    ! limitations by creating combined dimensions, for instance the size+pft dimension
-!    ! "scpf"
-!    ! ------------------------------------------------------------------------------------
+ !   ! ------------------------------------------------------------------------------------
+ !   ! PART I: Set FATES DIMENSIONING INFORMATION
+ !   !       
+ !   ! -------------------------------------------------------------------------------
+ !   ! Those who wish add variables that require new dimensions, please
+ !   ! see FATES: FatesHistoryInterfaceMod.F90.  Dimension types are defined at the top of the
+ !   ! module, and a new explicitly named instance of that type should be created.
+ !   ! With this new dimension, a new output type/kind can contain that dimension.
+ !   ! A new type/kind can be added to the dim_kinds structure, which defines its members
+ !   ! in created in init_dim_kinds_maps().  Make sure to increase the size of fates_num_dim_kinds.
+ !   ! A type/kind of output is defined by the data type (ie r8,int,..)
+ !   ! and the dimensions.  Keep in mind that 3D variables (or 4D if you include time)
+ !   ! are not really supported in ATS/ALM right now.  There are ways around this
+ !   ! limitations by creating combined dimensions, for instance the size+pft dimension
+ !   ! "scpf"
+ !   ! ------------------------------------------------------------------------------------
    
-!    call hlm_bounds_to_fates_bounds(bounds_proc, fates_bounds)
+ !   call hlm_bounds_to_fates_bounds(bounds_proc, fates_bounds)
 
-!    call this%fates_hist%Init(nclumps, fates_bounds)
+    call fates_hist%Init(nclumps, fates_bounds)
 
-!    ! Define the bounds on the first dimension for each thread
-!    !$OMP PARALLEL DO PRIVATE (nc,bounds_clump,fates_clump)
-!    do nc = 1,nclumps
+ !   ! Define the bounds on the first dimension for each thread
+ !   !$OMP PARALLEL DO PRIVATE (nc,bounds_clump,fates_clump)
+ !   do nc = 1,nclumps
       
-!       call get_clump_bounds(nc, bounds_clump)
+ !      call get_clump_bounds(nc, bounds_clump)
       
-!       ! thread bounds for patch
-!       call hlm_bounds_to_fates_bounds(bounds_clump, fates_clump)
-!       call this%fates_hist%SetThreadBoundsEach(nc, fates_clump)
-!    end do
-!    !$OMP END PARALLEL DO
+ !      ! thread bounds for patch
+ !      call hlm_bounds_to_fates_bounds(bounds_clump, fates_clump)
+ !      call this%fates_hist%SetThreadBoundsEach(nc, fates_clump)
+ !   end do
+ !   !$OMP END PARALLEL DO
 
-!    ! ------------------------------------------------------------------------------------
-!    ! PART I.5: SET SOME INDEX MAPPINGS SPECIFICALLY FOR SITE<->COLUMN AND PATCH 
-!    ! ------------------------------------------------------------------------------------
+ !   ! ------------------------------------------------------------------------------------
+ !   ! PART I.5: SET SOME INDEX MAPPINGS SPECIFICALLY FOR SITE<->COLUMN AND PATCH 
+ !   ! ------------------------------------------------------------------------------------
    
-!    !$OMP PARALLEL DO PRIVATE (nc,s,c)
-!    do nc = 1,nclumps
+ !   !$OMP PARALLEL DO PRIVATE (nc,s,c)
+ !   do nc = 1,nclumps
       
-!       allocate(this%fates_hist%iovar_map(nc)%site_index(this%fates(nc)%nsites))
-!       allocate(this%fates_hist%iovar_map(nc)%patch1_index(this%fates(nc)%nsites))
+       ! allocate(fates_hist%iovar_map(nc)%site_index(this%fates(nc)%nsites))
+       ! allocate(fates_hist%iovar_map(nc)%patch1_index(this%fates(nc)%nsites))
       
-!       do s=1,this%fates(nc)%nsites
-!          c = this%f2hmap(nc)%fcolumn(s)
-!          this%fates_hist%iovar_map(nc)%site_index(s)   = c
-!          this%fates_hist%iovar_map(nc)%patch1_index(s) = col_pp%pfti(c)+1
-!       end do
-      
-!    end do
-!    !$OMP END PARALLEL DO
+       ! do s=1,fates(nc)%nsites
+       !    c = f2hmap(nc)%fcolumn(s)
+       !    this%fates_hist%iovar_map(nc)%site_index(s)   = c
+       !    this%fates_hist%iovar_map(nc)%patch1_index(s) = col_pp%pfti(c)+1
+       ! end do
+       
+ !   end do
+ !   !$OMP END PARALLEL DO
    
-!    ! ------------------------------------------------------------------------------------
-!    ! PART II: USE THE JUST DEFINED DIMENSIONS TO ASSEMBLE THE VALID IO TYPES
-!    ! INTERF-TODO: THESE CAN ALL BE EMBEDDED INTO A SUBROUTINE IN HISTORYIOMOD
-!    ! ------------------------------------------------------------------------------------
-!    call this%fates_hist%assemble_history_output_types()
+   ! ------------------------------------------------------------------------------------
+   ! PART II: USE THE JUST DEFINED DIMENSIONS TO ASSEMBLE THE VALID IO TYPES
+   ! INTERF-TODO: THESE CAN ALL BE EMBEDDED INTO A SUBROUTINE IN HISTORYIOMOD
+   ! ------------------------------------------------------------------------------------
+   call fates_hist%assemble_history_output_types()
    
-!    ! ------------------------------------------------------------------------------------
-!    ! PART III: DEFINE THE LIST OF OUTPUT VARIABLE OBJECTS, AND REGISTER THEM WITH THE
-!    ! HLM ACCORDING TO THEIR TYPES
-!    ! ------------------------------------------------------------------------------------
-!    call this%fates_hist%initialize_history_vars()
-!    nvar = this%fates_hist%num_history_vars()
+   ! ------------------------------------------------------------------------------------
+   ! PART III: DEFINE THE LIST OF OUTPUT VARIABLE OBJECTS, AND REGISTER THEM WITH THE
+   ! HLM ACCORDING TO THEIR TYPES
+   ! ------------------------------------------------------------------------------------
+   call fates_hist%initialize_history_vars()
+   nvar = fates_hist%num_history_vars()
    
-!    do ivar = 1, nvar
+   do ivar = 1, nvar
       
-!       associate( vname    => this%fates_hist%hvars(ivar)%vname, &
-!                  vunits   => this%fates_hist%hvars(ivar)%units,   &
-!                  vlong    => this%fates_hist%hvars(ivar)%long, &
-!                  vdefault => this%fates_hist%hvars(ivar)%use_default, &
-!                  vavgflag => this%fates_hist%hvars(ivar)%avgflag)
+      associate( vname    => fates_hist%hvars(ivar)%vname, &
+                 vunits   => fates_hist%hvars(ivar)%units,   &
+                 vlong    => fates_hist%hvars(ivar)%long, &
+                 vdefault => fates_hist%hvars(ivar)%use_default, &
+                 vavgflag => fates_hist%hvars(ivar)%avgflag)
 
-!         dk_index = this%fates_hist%hvars(ivar)%dim_kinds_index
-!         ioname = trim(this%fates_hist%dim_kinds(dk_index)%name)
+      dk_index = fates_hist%hvars(ivar)%dim_kinds_index
+      ioname = trim(fates_hist%dim_kinds(dk_index)%name)
         
-!         select case(trim(ioname))
-!         case(patch_r8)
-!            call hist_addfld1d(fname=trim(vname),units=trim(vunits),         &
-!                               avgflag=trim(vavgflag),long_name=trim(vlong), &
-!                               ptr_patch=this%fates_hist%hvars(ivar)%r81d,    &
-!                               default=trim(vdefault),                       &
-!                               set_lake=0._r8,set_urb=0._r8)
+      ! select case(trim(ioname))
+      ! case(patch_r8)
+      !    call hist_addfld1d(fname=trim(vname),units=trim(vunits),         &
+      !         avgflag=trim(vavgflag),long_name=trim(vlong), &
+      !         ptr_patch=this%fates_hist%hvars(ivar)%r81d,    &
+      !         default=trim(vdefault),                       &
+      !         set_lake=0._r8,set_urb=0._r8)
            
-!         case(site_r8)
-!            call hist_addfld1d(fname=trim(vname),units=trim(vunits),         &
-!                               avgflag=trim(vavgflag),long_name=trim(vlong), &
-!                               ptr_col=this%fates_hist%hvars(ivar)%r81d,      & 
-!                               default=trim(vdefault),                       &
-!                               set_lake=0._r8,set_urb=0._r8)
+ !        case(site_r8)
+ !           call hist_addfld1d(fname=trim(vname),units=trim(vunits),         &
+ !                              avgflag=trim(vavgflag),long_name=trim(vlong), &
+ !                              ptr_col=this%fates_hist%hvars(ivar)%r81d,      & 
+ !                              default=trim(vdefault),                       &
+ !                              set_lake=0._r8,set_urb=0._r8)
 
-!         case(patch_ground_r8)
-!            d_index = this%fates_hist%dim_kinds(dk_index)%dim2_index
-!            dim2name = this%fates_hist%dim_bounds(d_index)%name
-!            call hist_addfld2d(fname=trim(vname),units=trim(vunits),         & ! <--- addfld2d
-!                               type2d=trim(dim2name),                        & ! <--- type2d
-!                               avgflag=trim(vavgflag),long_name=trim(vlong), &
-!                               ptr_patch=this%fates_hist%hvars(ivar)%r82d,    & 
-!                               default=trim(vdefault),                       &
-!                               set_lake=0._r8,set_urb=0._r8)
+ !        case(patch_ground_r8)
+ !           d_index = this%fates_hist%dim_kinds(dk_index)%dim2_index
+ !           dim2name = this%fates_hist%dim_bounds(d_index)%name
+ !           call hist_addfld2d(fname=trim(vname),units=trim(vunits),         & ! <--- addfld2d
+ !                              type2d=trim(dim2name),                        & ! <--- type2d
+ !                              avgflag=trim(vavgflag),long_name=trim(vlong), &
+ !                              ptr_patch=this%fates_hist%hvars(ivar)%r82d,    & 
+ !                              default=trim(vdefault),                       &
+ !                              set_lake=0._r8,set_urb=0._r8)
            
-!         case(patch_size_pft_r8)
-!            d_index = this%fates_hist%dim_kinds(dk_index)%dim2_index
-!            dim2name = this%fates_hist%dim_bounds(d_index)%name
-!            call hist_addfld2d(fname=trim(vname),units=trim(vunits),         &
-!                               type2d=trim(dim2name),                        &
-!                               avgflag=trim(vavgflag),long_name=trim(vlong), &
-!                               ptr_patch=this%fates_hist%hvars(ivar)%r82d,    & 
-!                               default=trim(vdefault),                       &
-!                               set_lake=0._r8,set_urb=0._r8)
-!         case(site_ground_r8)
-!            d_index = this%fates_hist%dim_kinds(dk_index)%dim2_index
-!            dim2name = this%fates_hist%dim_bounds(d_index)%name
-!            call hist_addfld2d(fname=trim(vname),units=trim(vunits),         &
-!                               type2d=trim(dim2name),                        &
-!                               avgflag=trim(vavgflag),long_name=trim(vlong), &
-!                               ptr_col=this%fates_hist%hvars(ivar)%r82d,      & 
-!                               default=trim(vdefault),                       &
-!                               set_lake=0._r8,set_urb=0._r8)
-!         case(site_size_pft_r8)
-!            d_index = this%fates_hist%dim_kinds(dk_index)%dim2_index
-!            dim2name = this%fates_hist%dim_bounds(d_index)%name
-!            call hist_addfld2d(fname=trim(vname),units=trim(vunits),         &
-!                               type2d=trim(dim2name),                        &
-!                               avgflag=trim(vavgflag),long_name=trim(vlong), &
-!                               ptr_col=this%fates_hist%hvars(ivar)%r82d,      & 
-!                               default=trim(vdefault),                       &
-!                               set_lake=0._r8,set_urb=0._r8)
-!         case(site_size_r8)
-!            d_index = this%fates_hist%dim_kinds(dk_index)%dim2_index
-!            dim2name = this%fates_hist%dim_bounds(d_index)%name
-!            call hist_addfld2d(fname=trim(vname),units=trim(vunits),         &
-!                               type2d=trim(dim2name),                        &
-!                               avgflag=trim(vavgflag),long_name=trim(vlong), &
-!                               ptr_col=this%fates_hist%hvars(ivar)%r82d,    & 
-!                               default=trim(vdefault),                       &
-!                               set_lake=0._r8,set_urb=0._r8)
-!         case(site_pft_r8)
-!            d_index = this%fates_hist%dim_kinds(dk_index)%dim2_index
-!            dim2name = this%fates_hist%dim_bounds(d_index)%name
-!            call hist_addfld2d(fname=trim(vname),units=trim(vunits),         &
-!                               type2d=trim(dim2name),                        &
-!                               avgflag=trim(vavgflag),long_name=trim(vlong), &
-!                               ptr_col=this%fates_hist%hvars(ivar)%r82d,    & 
-!                               default=trim(vdefault),                       &
-!                               set_lake=0._r8,set_urb=0._r8)
-!         case(site_age_r8)
-!            d_index = this%fates_hist%dim_kinds(dk_index)%dim2_index
-!            dim2name = this%fates_hist%dim_bounds(d_index)%name
-!            call hist_addfld2d(fname=trim(vname),units=trim(vunits),         &
-!                               type2d=trim(dim2name),                        &
-!                               avgflag=trim(vavgflag),long_name=trim(vlong), &
-!                               ptr_col=this%fates_hist%hvars(ivar)%r82d,    & 
-!                               default=trim(vdefault),                       &
-!                               set_lake=0._r8,set_urb=0._r8)
+ !        case(patch_size_pft_r8)
+ !           d_index = this%fates_hist%dim_kinds(dk_index)%dim2_index
+ !           dim2name = this%fates_hist%dim_bounds(d_index)%name
+ !           call hist_addfld2d(fname=trim(vname),units=trim(vunits),         &
+ !                              type2d=trim(dim2name),                        &
+ !                              avgflag=trim(vavgflag),long_name=trim(vlong), &
+ !                              ptr_patch=this%fates_hist%hvars(ivar)%r82d,    & 
+ !                              default=trim(vdefault),                       &
+ !                              set_lake=0._r8,set_urb=0._r8)
+ !        case(site_ground_r8)
+ !           d_index = this%fates_hist%dim_kinds(dk_index)%dim2_index
+ !           dim2name = this%fates_hist%dim_bounds(d_index)%name
+ !           call hist_addfld2d(fname=trim(vname),units=trim(vunits),         &
+ !                              type2d=trim(dim2name),                        &
+ !                              avgflag=trim(vavgflag),long_name=trim(vlong), &
+ !                              ptr_col=this%fates_hist%hvars(ivar)%r82d,      & 
+ !                              default=trim(vdefault),                       &
+ !                              set_lake=0._r8,set_urb=0._r8)
+ !        case(site_size_pft_r8)
+ !           d_index = this%fates_hist%dim_kinds(dk_index)%dim2_index
+ !           dim2name = this%fates_hist%dim_bounds(d_index)%name
+ !           call hist_addfld2d(fname=trim(vname),units=trim(vunits),         &
+ !                              type2d=trim(dim2name),                        &
+ !                              avgflag=trim(vavgflag),long_name=trim(vlong), &
+ !                              ptr_col=this%fates_hist%hvars(ivar)%r82d,      & 
+ !                              default=trim(vdefault),                       &
+ !                              set_lake=0._r8,set_urb=0._r8)
+ !        case(site_size_r8)
+ !           d_index = this%fates_hist%dim_kinds(dk_index)%dim2_index
+ !           dim2name = this%fates_hist%dim_bounds(d_index)%name
+ !           call hist_addfld2d(fname=trim(vname),units=trim(vunits),         &
+ !                              type2d=trim(dim2name),                        &
+ !                              avgflag=trim(vavgflag),long_name=trim(vlong), &
+ !                              ptr_col=this%fates_hist%hvars(ivar)%r82d,    & 
+ !                              default=trim(vdefault),                       &
+ !                              set_lake=0._r8,set_urb=0._r8)
+ !        case(site_pft_r8)
+ !           d_index = this%fates_hist%dim_kinds(dk_index)%dim2_index
+ !           dim2name = this%fates_hist%dim_bounds(d_index)%name
+ !           call hist_addfld2d(fname=trim(vname),units=trim(vunits),         &
+ !                              type2d=trim(dim2name),                        &
+ !                              avgflag=trim(vavgflag),long_name=trim(vlong), &
+ !                              ptr_col=this%fates_hist%hvars(ivar)%r82d,    & 
+ !                              default=trim(vdefault),                       &
+ !                              set_lake=0._r8,set_urb=0._r8)
+ !        case(site_age_r8)
+ !           d_index = this%fates_hist%dim_kinds(dk_index)%dim2_index
+ !           dim2name = this%fates_hist%dim_bounds(d_index)%name
+ !           call hist_addfld2d(fname=trim(vname),units=trim(vunits),         &
+ !                              type2d=trim(dim2name),                        &
+ !                              avgflag=trim(vavgflag),long_name=trim(vlong), &
+ !                              ptr_col=this%fates_hist%hvars(ivar)%r82d,    & 
+ !                              default=trim(vdefault),                       &
+ !                              set_lake=0._r8,set_urb=0._r8)
 
-!         case(site_height_r8)
-!            d_index = this%fates_hist%dim_kinds(dk_index)%dim2_index
-!            dim2name = this%fates_hist%dim_bounds(d_index)%name
-!            call hist_addfld2d(fname=trim(vname),units=trim(vunits),         &
-!                               type2d=trim(dim2name),                        &
-!                               avgflag=trim(vavgflag),long_name=trim(vlong), &
-!                               ptr_col=this%fates_hist%hvars(ivar)%r82d,     & 
-!                               default=trim(vdefault),                       &
-!                               set_lake=0._r8,set_urb=0._r8)
+ !        case(site_height_r8)
+ !           d_index = this%fates_hist%dim_kinds(dk_index)%dim2_index
+ !           dim2name = this%fates_hist%dim_bounds(d_index)%name
+ !           call hist_addfld2d(fname=trim(vname),units=trim(vunits),         &
+ !                              type2d=trim(dim2name),                        &
+ !                              avgflag=trim(vavgflag),long_name=trim(vlong), &
+ !                              ptr_col=this%fates_hist%hvars(ivar)%r82d,     & 
+ !                              default=trim(vdefault),                       &
+ !                              set_lake=0._r8,set_urb=0._r8)
 
-!         case(site_scagpft_r8)
-!            d_index = this%fates_hist%dim_kinds(dk_index)%dim2_index
-!            dim2name = this%fates_hist%dim_bounds(d_index)%name
-!            call hist_addfld2d(fname=trim(vname),units=trim(vunits),         &
-!                               type2d=trim(dim2name),                        &
-!                               avgflag=trim(vavgflag),long_name=trim(vlong), &
-!                               ptr_col=this%fates_hist%hvars(ivar)%r82d,     & 
-!                               default=trim(vdefault),                       &
-!                               set_lake=0._r8,set_urb=0._r8)
+ !        case(site_scagpft_r8)
+ !           d_index = this%fates_hist%dim_kinds(dk_index)%dim2_index
+ !           dim2name = this%fates_hist%dim_bounds(d_index)%name
+ !           call hist_addfld2d(fname=trim(vname),units=trim(vunits),         &
+ !                              type2d=trim(dim2name),                        &
+ !                              avgflag=trim(vavgflag),long_name=trim(vlong), &
+ !                              ptr_col=this%fates_hist%hvars(ivar)%r82d,     & 
+ !                              default=trim(vdefault),                       &
+ !                              set_lake=0._r8,set_urb=0._r8)
 
-!         case(site_agepft_r8)
-!            d_index = this%fates_hist%dim_kinds(dk_index)%dim2_index
-!            dim2name = this%fates_hist%dim_bounds(d_index)%name
-!            call hist_addfld2d(fname=trim(vname),units=trim(vunits),         &
-!                               type2d=trim(dim2name),                        &
-!                               avgflag=trim(vavgflag),long_name=trim(vlong), &
-!                               ptr_col=this%fates_hist%hvars(ivar)%r82d,     & 
-!                               default=trim(vdefault),                       &
-!                               set_lake=0._r8,set_urb=0._r8)
+ !        case(site_agepft_r8)
+ !           d_index = this%fates_hist%dim_kinds(dk_index)%dim2_index
+ !           dim2name = this%fates_hist%dim_bounds(d_index)%name
+ !           call hist_addfld2d(fname=trim(vname),units=trim(vunits),         &
+ !                              type2d=trim(dim2name),                        &
+ !                              avgflag=trim(vavgflag),long_name=trim(vlong), &
+ !                              ptr_col=this%fates_hist%hvars(ivar)%r82d,     & 
+ !                              default=trim(vdefault),                       &
+ !                              set_lake=0._r8,set_urb=0._r8)
 
-!         case(site_fuel_r8)
-!            d_index = this%fates_hist%dim_kinds(dk_index)%dim2_index
-!            dim2name = this%fates_hist%dim_bounds(d_index)%name
-!            call hist_addfld2d(fname=trim(vname),units=trim(vunits),         &
-!                               type2d=trim(dim2name),                        &
-!                               avgflag=trim(vavgflag),long_name=trim(vlong), &
-!                               ptr_col=this%fates_hist%hvars(ivar)%r82d,    & 
-!                               default=trim(vdefault),                       &
-!                               set_lake=0._r8,set_urb=0._r8)
-!         case(site_cwdsc_r8)
-!            d_index = this%fates_hist%dim_kinds(dk_index)%dim2_index
-!            dim2name = this%fates_hist%dim_bounds(d_index)%name
-!            call hist_addfld2d(fname=trim(vname),units=trim(vunits),         &
-!                               type2d=trim(dim2name),                        &
-!                               avgflag=trim(vavgflag),long_name=trim(vlong), &
-!                               ptr_col=this%fates_hist%hvars(ivar)%r82d,    & 
-!                               default=trim(vdefault),                       &
-!                               set_lake=0._r8,set_urb=0._r8)
-!         case(site_can_r8)
-!            d_index = this%fates_hist%dim_kinds(dk_index)%dim2_index
-!            dim2name = this%fates_hist%dim_bounds(d_index)%name
-!            call hist_addfld2d(fname=trim(vname),units=trim(vunits),         &
-!                               type2d=trim(dim2name),                        &
-!                               avgflag=trim(vavgflag),long_name=trim(vlong), &
-!                               ptr_col=this%fates_hist%hvars(ivar)%r82d,    & 
-!                               default=trim(vdefault),                       &
-!                               set_lake=0._r8,set_urb=0._r8)
-!         case(site_cnlf_r8)
-!            d_index = this%fates_hist%dim_kinds(dk_index)%dim2_index
-!            dim2name = this%fates_hist%dim_bounds(d_index)%name
-!            call hist_addfld2d(fname=trim(vname),units=trim(vunits),         &
-!                               type2d=trim(dim2name),                        &
-!                               avgflag=trim(vavgflag),long_name=trim(vlong), &
-!                               ptr_col=this%fates_hist%hvars(ivar)%r82d,    & 
-!                               default=trim(vdefault),                       &
-!                               set_lake=0._r8,set_urb=0._r8)
-!         case(site_cnlfpft_r8)
-!            d_index = this%fates_hist%dim_kinds(dk_index)%dim2_index
-!            dim2name = this%fates_hist%dim_bounds(d_index)%name
-!            call hist_addfld2d(fname=trim(vname),units=trim(vunits),         &
-!                               type2d=trim(dim2name),                        &
-!                               avgflag=trim(vavgflag),long_name=trim(vlong), &
-!                               ptr_col=this%fates_hist%hvars(ivar)%r82d,    & 
-!                               default=trim(vdefault),                       &
-!                               set_lake=0._r8,set_urb=0._r8)
-!         case(site_scag_r8)
-!            d_index = this%fates_hist%dim_kinds(dk_index)%dim2_index
-!            dim2name = this%fates_hist%dim_bounds(d_index)%name
-!            call hist_addfld2d(fname=trim(vname),units=trim(vunits),         &
-!                               type2d=trim(dim2name),                        &
-!                               avgflag=trim(vavgflag),long_name=trim(vlong), &
-!                               ptr_col=this%fates_hist%hvars(ivar)%r82d,    & 
-!                               default=trim(vdefault),                       &
-!                               set_lake=0._r8,set_urb=0._r8)
+ !        case(site_fuel_r8)
+ !           d_index = this%fates_hist%dim_kinds(dk_index)%dim2_index
+ !           dim2name = this%fates_hist%dim_bounds(d_index)%name
+ !           call hist_addfld2d(fname=trim(vname),units=trim(vunits),         &
+ !                              type2d=trim(dim2name),                        &
+ !                              avgflag=trim(vavgflag),long_name=trim(vlong), &
+ !                              ptr_col=this%fates_hist%hvars(ivar)%r82d,    & 
+ !                              default=trim(vdefault),                       &
+ !                              set_lake=0._r8,set_urb=0._r8)
+ !        case(site_cwdsc_r8)
+ !           d_index = this%fates_hist%dim_kinds(dk_index)%dim2_index
+ !           dim2name = this%fates_hist%dim_bounds(d_index)%name
+ !           call hist_addfld2d(fname=trim(vname),units=trim(vunits),         &
+ !                              type2d=trim(dim2name),                        &
+ !                              avgflag=trim(vavgflag),long_name=trim(vlong), &
+ !                              ptr_col=this%fates_hist%hvars(ivar)%r82d,    & 
+ !                              default=trim(vdefault),                       &
+ !                              set_lake=0._r8,set_urb=0._r8)
+ !        case(site_can_r8)
+ !           d_index = this%fates_hist%dim_kinds(dk_index)%dim2_index
+ !           dim2name = this%fates_hist%dim_bounds(d_index)%name
+ !           call hist_addfld2d(fname=trim(vname),units=trim(vunits),         &
+ !                              type2d=trim(dim2name),                        &
+ !                              avgflag=trim(vavgflag),long_name=trim(vlong), &
+ !                              ptr_col=this%fates_hist%hvars(ivar)%r82d,    & 
+ !                              default=trim(vdefault),                       &
+ !                              set_lake=0._r8,set_urb=0._r8)
+ !        case(site_cnlf_r8)
+ !           d_index = this%fates_hist%dim_kinds(dk_index)%dim2_index
+ !           dim2name = this%fates_hist%dim_bounds(d_index)%name
+ !           call hist_addfld2d(fname=trim(vname),units=trim(vunits),         &
+ !                              type2d=trim(dim2name),                        &
+ !                              avgflag=trim(vavgflag),long_name=trim(vlong), &
+ !                              ptr_col=this%fates_hist%hvars(ivar)%r82d,    & 
+ !                              default=trim(vdefault),                       &
+ !                              set_lake=0._r8,set_urb=0._r8)
+ !        case(site_cnlfpft_r8)
+ !           d_index = this%fates_hist%dim_kinds(dk_index)%dim2_index
+ !           dim2name = this%fates_hist%dim_bounds(d_index)%name
+ !           call hist_addfld2d(fname=trim(vname),units=trim(vunits),         &
+ !                              type2d=trim(dim2name),                        &
+ !                              avgflag=trim(vavgflag),long_name=trim(vlong), &
+ !                              ptr_col=this%fates_hist%hvars(ivar)%r82d,    & 
+ !                              default=trim(vdefault),                       &
+ !                              set_lake=0._r8,set_urb=0._r8)
+ !        case(site_scag_r8)
+ !           d_index = this%fates_hist%dim_kinds(dk_index)%dim2_index
+ !           dim2name = this%fates_hist%dim_bounds(d_index)%name
+ !           call hist_addfld2d(fname=trim(vname),units=trim(vunits),         &
+ !                              type2d=trim(dim2name),                        &
+ !                              avgflag=trim(vavgflag),long_name=trim(vlong), &
+ !                              ptr_col=this%fates_hist%hvars(ivar)%r82d,    & 
+ !                              default=trim(vdefault),                       &
+ !                              set_lake=0._r8,set_urb=0._r8)
            
 
-!         case default
-!            write(iulog,*) 'A FATES iotype was created that was not registerred'
-!            write(iulog,*) 'in ATS.:',trim(ioname)
-!            call endrun(msg=errMsg(sourcefile, __LINE__))
-!         end select
+ !        case default
+ !           write(iulog,*) 'A FATES iotype was created that was not registerred'
+ !           write(iulog,*) 'in ATS.:',trim(ioname)
+ !           call endrun(msg=errMsg(sourcefile, __LINE__))
+ !        end select
           
-!       end associate
-!    end do
-!  end subroutine init_history_io
+    end associate
+   end do
+  end subroutine init_history_io
 
-!  ! ======================================================================================
+ ! ======================================================================================
  
 
 

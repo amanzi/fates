@@ -52,6 +52,7 @@ include_directories(${CMAKE_INSTALL_PREFIX}/../shared
                     EDParamsMod.F90
                     EDPftvarcon.F90
                     EDTypesMod.F90
+                    histFileMod.F90
                     ../parteh/PRTGenericMod.F90
                     ../parteh/PRTAllometricCarbonMod.F90
                     ../parteh/PRTLossFluxesMod.F90

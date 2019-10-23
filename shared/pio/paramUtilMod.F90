@@ -124,9 +124,7 @@ contains
       !
       ! netcdf read here
       !
-      write(*,*) trim(varName) 
-!      call ncd_io(trim(varName), retVal, 'read', ncid, readvar=readv, posNOTonfile=.true.)
-     call ncd_io(varname=trim(varName),data=retVal, flag='read', ncid=ncid, readvar=readv)
+      call ncd_io(varname=trim(varName),data=retVal, flag='read', ncid=ncid, readvar=readv)
 
       if ( .not. readv ) then
          call endrun(trim(callingName)//trim(subname)//trim(errCode)//trim(varName))

@@ -7,6 +7,8 @@ The column has nlevel=5 soil layears and nlevdecomp=1 decomp layers.
 
 #include "ISO_Fortran_binding.h"
 #include <string.h>
+#include <stdio.h>
+
 
 typedef struct {  
   int nlevbed;
@@ -53,21 +55,6 @@ main()
   fatessetinputfiles(&clmdesc, &fatesdesc);    
   fatesreadparameters();
     
-  site_info site[10];
-  int num_sites = 1;
-  int clump = 1;
-  int nlevel = 5;
-  
-  /* Define site information */
-  for (int i=0; i<num_sites; i++){ 
-    site[i].nlevbed = nlevel;
-    site[i].nlevdecomp = 1;
-    site[i].patchno = 1;
-    site[i].temp_veg24_patch = 283;
-    site[i].altmax_lastyear_indx_col = 1;
-    site[i].latdeg = 30.;
-    site[i].londeg = 30.;
-  }
 
   /* Initialization */
   /*  ! Read in FATES parameter values early in the call sequence as well
@@ -91,8 +78,25 @@ main()
      to allocate space)
      ------------------------------------------------------------------------*/
 
-
   set_fates_global_elements();
+
+
+
+    site_info site[10];
+  int num_sites = 1;
+  int clump = 1;
+  int nlevel = 5;
+  
+  /* Define site information */
+  for (int i=0; i<num_sites; i++){ 
+    site[i].nlevbed = nlevel;
+    site[i].nlevdecomp = 1;
+    site[i].patchno = 1;
+    site[i].temp_veg24_patch = 283;
+    site[i].altmax_lastyear_indx_col = 1;
+    site[i].latdeg = 30.;
+    site[i].londeg = 30.;
+  }
 
   /* Preliminary initialization of FATES */
   init_ats_fates(&num_sites, site);
@@ -106,7 +110,7 @@ main()
     dz[i] = 1;
   }  
   dzsoil_decomp[0] = 1;
-
+  
   /* Initialize soil layers in FATES*/
   for (int i=0; i<num_sites; i++){
     int s = i+1;    
@@ -150,7 +154,7 @@ main()
                            decomp_cpools_sourcesink_lig);
   }
 
-  
+  printf("Finished successfully.\n");
   
   return 0;
 }
