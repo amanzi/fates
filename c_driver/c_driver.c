@@ -27,11 +27,11 @@ extern void fatessetinputfiles(CFI_cdesc_t * clm, CFI_cdesc_t * fates);
 extern void fatesreadparameters();
 extern void fatesreadpfts();
 extern void set_fates_global_elements();
+extern void get_nlevsclass(int*);
 
 
 extern void dynamics_driv_per_site(int*, int*, site_info*, double*,
-                            double*, double*, double*, double*,
-                            double*, double*, double*, double*);
+                            double*, double*, double*, double*, double*);
 
 
 
@@ -55,7 +55,7 @@ main()
   fatessetinputfiles(&clmdesc, &fatesdesc);    
   fatesreadparameters();
     
-
+ 
   /* Initialization */
   /*  ! Read in FATES parameter values early in the call sequence as well
     ! The PFT file, specifically, will dictate how many pfts are used
@@ -81,8 +81,10 @@ main()
   set_fates_global_elements();
 
 
-
-    site_info site[10];
+  int nlevelclass;
+  get_nlevsclass(&nlevelclass);
+  
+  site_info site[10];
   int num_sites = 1;
   int clump = 1;
   int nlevel = 5;
@@ -137,7 +139,10 @@ main()
   double decomp_cpools_sourcesink_met[site[0].nlevdecomp],
          decomp_cpools_sourcesink_cel[site[0].nlevdecomp],
          decomp_cpools_sourcesink_lig[site[0].nlevdecomp];
- 
+
+
+
+  
   for (int i=0; i<num_sites; i++){
     int s = i+1;
 
@@ -148,10 +153,7 @@ main()
     
     dynamics_driv_per_site(&clump, &s, &(site[i]),&dtime,
                            h2osoi_vol_col,
-                           temp_veg24_patch, prec24_patch, rh24_patch, wind24_patch,
-                           decomp_cpools_sourcesink_met,
-                           decomp_cpools_sourcesink_cel,
-                           decomp_cpools_sourcesink_lig);
+                           temp_veg24_patch, prec24_patch, rh24_patch, wind24_patch);
   }
 
   printf("Finished successfully.\n");

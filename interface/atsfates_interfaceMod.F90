@@ -467,6 +467,17 @@ module ATSFatesInterfaceMod
     end subroutine init_ats_fates
 
 
+    subroutine get_nlevsclass(nlevel_class) BIND(C)
+
+      use FatesInterfaceMod, only : nlevsclass
+
+      integer(C_INT),intent(out)            :: nlevel_class
+
+      nlevel_class = nlevsclass
+
+    end subroutine get_nlevsclass
+
+
     subroutine init_soil_depths(nc, site_id, site_info, zi, dz, z, dzsoi_decomp) BIND(C)
 
       use FatesInterfaceMod, only : FatesReportParameters
@@ -522,10 +533,7 @@ module ATSFatesInterfaceMod
 
     subroutine dynamics_driv_per_site( &
          nc, site_id, site_info, dtime,&
-         h2osoi_vol_col, temp_veg24_patch, prec24_patch, rh24_patch, wind24_patch, &
-         decomp_cpools_sourcesink_met, &
-         decomp_cpools_sourcesink_cel, &
-         decomp_cpools_sourcesink_lig) BIND(C)
+         h2osoi_vol_col, temp_veg24_patch, prec24_patch, rh24_patch, wind24_patch) BIND(C)
     
 !       ! This wrapper is called daily from ATS_driver for each site
 !       ! This wrapper calls ed_driver, which is the daily dynamics component of FATES
@@ -543,9 +551,10 @@ module ATSFatesInterfaceMod
       real(C_DOUBLE), intent(in)                :: prec24_patch(site_info%patchno)
       real(C_DOUBLE), intent(in)                :: rh24_patch(site_info%patchno)
       real(C_DOUBLE), intent(in)                :: wind24_patch(site_info%patchno)
-      real(C_DOUBLE), intent(inout)             :: decomp_cpools_sourcesink_met(site_info%nlevdecomp)
-      real(C_DOUBLE), intent(inout)             :: decomp_cpools_sourcesink_cel(site_info%nlevdecomp)
-      real(C_DOUBLE), intent(inout)             :: decomp_cpools_sourcesink_lig(site_info%nlevdecomp)      
+      ! real(C_DOUBLE), intent(inout)             :: decomp_cpools_sourcesink_met(site_info%nlevdecomp)
+      ! real(C_DOUBLE), intent(inout)             :: decomp_cpools_sourcesink_cel(site_info%nlevdecomp)
+      ! real(C_DOUBLE), intent(inout)             :: decomp_cpools_sourcesink_lig(site_info%nlevdecomp)
+      
       
 !       ! !LOCAL VARIABLES:
        integer  :: ifp                      ! patch index
@@ -670,10 +679,10 @@ module ATSFatesInterfaceMod
         ! ---------------------------------------------------------------------------------       ! Part III: Process FATES output into the dimensions and structures that are part
         ! of the HLMs API.  (column, depth, and litter fractions)
         ! ---------------------------------------------------------------------------------
-       call UpdateLitterFluxes_per_site(nc, site_id, dtime, &
-            decomp_cpools_sourcesink_met, &
-            decomp_cpools_sourcesink_cel, &
-            decomp_cpools_sourcesink_lig)         
+       ! call UpdateLitterFluxes_per_site(nc, site_id, dtime, &
+       !      decomp_cpools_sourcesink_met, &
+       !      decomp_cpools_sourcesink_cel, &
+       !      decomp_cpools_sourcesink_lig)         
 
 
 !       ! ---------------------------------------------------------------------------------
@@ -696,182 +705,7 @@ module ATSFatesInterfaceMod
      
       return
     end subroutine dynamics_driv_per_site
-
     
-
-
-!    subroutine dynamics_driv(this, bounds_clump,              &
-!          atm2lnd_inst, soilstate_inst, temperature_inst,     &
-!          waterstate_inst, canopystate_inst, carbonflux_inst, &
-!          frictionvel_inst )
-    
-!       ! This wrapper is called daily from clm_driver
-!       ! This wrapper calls ed_driver, which is the daily dynamics component of FATES
-!       ! ed_driver is not a hlm_fates_inst_type procedure because we need an extra step 
-!       ! to process array bounding information 
-      
-!       implicit none
-!       class(hlm_fates_interface_type), intent(inout) :: this
-!       type(bounds_type),intent(in)                   :: bounds_clump
-!       type(atm2lnd_type)      , intent(in)           :: atm2lnd_inst
-!       type(soilstate_type)    , intent(in)           :: soilstate_inst
-!       type(temperature_type)  , intent(in)           :: temperature_inst
-!       type(waterstate_type)   , intent(inout)        :: waterstate_inst
-!       type(canopystate_type)  , intent(inout)        :: canopystate_inst
-!       type(carbonflux_type)   , intent(inout)        :: carbonflux_inst
-!       type(frictionvel_type)  , intent(inout)        :: frictionvel_inst
-
-!       ! !LOCAL VARIABLES:
-!       integer  :: s                        ! site index
-!       integer  :: c                        ! column index (HLM)
-!       integer  :: ifp                      ! patch index
-!       integer  :: p                        ! HLM patch index
-!       integer  :: nc                       ! clump index
-!       integer  :: yr                       ! year (0, ...)
-!       integer  :: mon                      ! month (1, ..., 12)
-!       integer  :: day                      ! day of month (1, ..., 31)
-!       integer  :: sec                      ! seconds of the day
-!       integer  :: nlevsoil                 ! number of soil layers at the site
-!       integer  :: current_year             
-!       integer  :: current_month
-!       integer  :: current_day
-!       integer  :: current_tod
-!       integer  :: current_date
-!       integer  :: jan01_curr_year
-!       integer  :: reference_date
-!       integer  :: days_per_year
-!       real(r8) :: model_day
-!       real(r8) :: day_of_year
-!       !-----------------------------------------------------------------------
-
-!       nc = bounds_clump%clump_index
-
-!       ! ---------------------------------------------------------------------------------
-!       ! Part I.
-!       ! Prepare input boundary conditions for FATES dynamics
-!       ! Note that timing information is the same across all sites, this may
-!       ! seem redundant, but it is possible that we may have asynchronous site simulations
-!       ! one day.  The cost of holding site level boundary conditions is minimal
-!       ! and it keeps all the boundaries in one location
-!       ! ---------------------------------------------------------------------------------
-
-!       days_per_year = get_days_per_year()
-!       call get_curr_date(current_year,current_month,current_day,current_tod)
-!       current_date = current_year*10000 + current_month*100 + current_day
-!       jan01_curr_year = current_year*10000 + 100 + 1
-
-!       call get_ref_date(yr, mon, day, sec)
-!       reference_date = yr*10000 + mon*100 + day
-
-!       call timemgr_datediff(reference_date, sec, current_date, current_tod, model_day)
-
-!       call timemgr_datediff(jan01_curr_year,0,current_date,sec,day_of_year)
-      
-!       call SetFatesTime(current_year, current_month, &
-!                         current_day, current_tod, &
-!                         current_date, reference_date, &
-!                         model_day, floor(day_of_year), &
-!                         days_per_year, 1.0_r8/dble(days_per_year))
-
-
-!       do s=1,this%fates(nc)%nsites
-
-!          c = this%f2hmap(nc)%fcolumn(s)
-
-!          nlevsoil = this%fates(nc)%bc_in(s)%nlevsoil
-
-!          this%fates(nc)%bc_in(s)%h2o_liqvol_sl(1:nlevsoil)  = &
-!                waterstate_inst%h2osoi_vol_col(c,1:nlevsoil) 
-
-!          this%fates(nc)%bc_in(s)%t_veg24_si = &
-!                temperature_inst%t_veg24_patch(col_pp%pfti(c))
-
-!          this%fates(nc)%bc_in(s)%max_rooting_depth_index_col = &
-!               min(nlevsoil, canopystate_inst%altmax_lastyear_indx_col(c))
-
-!          do ifp = 1, this%fates(nc)%sites(s)%youngest_patch%patchno
-!             p = ifp+col_pp%pfti(c)
-!             this%fates(nc)%bc_in(s)%t_veg24_pa(ifp) = &
-!                  temperature_inst%t_veg24_patch(p)
-
-!             this%fates(nc)%bc_in(s)%precip24_pa(ifp) = &
-!                   atm2lnd_inst%prec24_patch(p)
-
-!             this%fates(nc)%bc_in(s)%relhumid24_pa(ifp) = &
-!                   atm2lnd_inst%rh24_patch(p)
-
-!             this%fates(nc)%bc_in(s)%wind24_pa(ifp) = &
-!                   atm2lnd_inst%wind24_patch(p)
-
-!          end do
-
-         
-!          if(use_fates_planthydro)then
-!             this%fates(nc)%bc_in(s)%hksat_sisl(1:nlevsoil)  = soilstate_inst%hksat_col(c,1:nlevsoil)
-!             this%fates(nc)%bc_in(s)%watsat_sisl(1:nlevsoil) = soilstate_inst%watsat_col(c,1:nlevsoil)
-!             this%fates(nc)%bc_in(s)%watres_sisl(1:nlevsoil) = spval !soilstate_inst%watres_col(c,1:nlevsoil)
-!             this%fates(nc)%bc_in(s)%sucsat_sisl(1:nlevsoil) = soilstate_inst%sucsat_col(c,1:nlevsoil)
-!             this%fates(nc)%bc_in(s)%bsw_sisl(1:nlevsoil)    = soilstate_inst%bsw_col(c,1:nlevsoil)
-!             this%fates(nc)%bc_in(s)%h2o_liq_sisl(1:nlevsoil) =  waterstate_inst%h2osoi_liq_col(c,1:nlevsoil)
-!          end if
-         
-
-!       end do
-
-!       ! ---------------------------------------------------------------------------------
-!       ! Part II: Call the FATES model now that input boundary conditions have been
-!       ! provided.
-!       ! ---------------------------------------------------------------------------------
-
-!       do s = 1,this%fates(nc)%nsites
-
-!             call ed_ecosystem_dynamics(this%fates(nc)%sites(s),    &
-!                   this%fates(nc)%bc_in(s))
-            
-!             call ed_update_site(this%fates(nc)%sites(s), &
-!                   this%fates(nc)%bc_in(s))
-            
-!       enddo
-      
-!       ! call subroutine to aggregate ED litter output fluxes and 
-!       ! package them for handing across interface
-!       call flux_into_litter_pools(this%fates(nc)%nsites, &
-!             this%fates(nc)%sites,  &
-!             this%fates(nc)%bc_in,  &
-!             this%fates(nc)%bc_out)
-
-!       ! ---------------------------------------------------------------------------------
-!       ! Part III: Process FATES output into the dimensions and structures that are part
-!       ! of the HLMs API.  (column, depth, and litter fractions)
-!       ! ---------------------------------------------------------------------------------
-!       call this%UpdateLitterFluxes(bounds_clump,carbonflux_inst)
-
-!       ! ---------------------------------------------------------------------------------
-!       ! Part III.2 (continued).
-!       ! Update diagnostics of the FATES ecosystem structure that are used in the HLM.
-!       ! ---------------------------------------------------------------------------------
-!       call this%wrap_update_hlmfates_dyn(nc,               &
-!                                          bounds_clump,     &
-!                                          waterstate_inst,  &
-!                                          canopystate_inst, &
-!                                          frictionvel_inst)
-      
-!       ! ---------------------------------------------------------------------------------
-!       ! Part IV: 
-!       ! Update history IO fields that depend on ecosystem dynamics
-!       ! ---------------------------------------------------------------------------------
-!       call this%fates_hist%update_history_dyn( nc,                    &
-!                                               this%fates(nc)%nsites, &
-!                                               this%fates(nc)%sites) 
-
-!       if (masterproc) then
-!          write(iulog, *) 'clm: leaving ED model', bounds_clump%begg, &
-!                                                   bounds_clump%endg
-!       end if
-
-      
-!       return
-!    end subroutine dynamics_driv
 
 !    ! ------------------------------------------------------------------------------------
     subroutine UpdateLitterFluxes_per_site(nc, site_id, dtime, &
@@ -959,7 +793,116 @@ module ATSFatesInterfaceMod
         !      fates(nc)%bc_out )
         
 
-    end subroutine wrap_update_atsfates_dyn
+     end subroutine wrap_update_atsfates_dyn
+
+
+
+     subroutine calculate_biomass(ats_biomass_array, nsites, num_scls) BIND(C)
+
+       use FatesInterfaceMod, only : nlevsclass
+       use EDtypesMod          , only : nfsc
+       use FatesLitterMod      , only : ncwd
+       use EDtypesMod          , only : ican_upper
+       use EDtypesMod          , only : ican_ustory
+       use FatesSizeAgeTypeIndicesMod, only : get_sizeage_class_index
+       use FatesSizeAgeTypeIndicesMod, only : get_sizeagepft_class_index
+       use FatesSizeAgeTypeIndicesMod, only : get_agepft_class_index
+       use FatesSizeAgeTypeIndicesMod, only : get_age_class_index
+       use FatesSizeAgeTypeIndicesMod, only : get_height_index
+       use FatesSizeAgeTypeIndicesMod, only : sizetype_class_index
+       use EDTypesMod        , only : nlevleaf
+       use EDParamsMod,           only : ED_val_history_height_bin_edges
+       use EDtypesMod               , only : ed_cohort_type
+       use EDtypesMod               , only : ed_patch_type
+       use EDtypesMod               , only : AREA
+       use EDtypesMod               , only : AREA_INV
+
+       use PRTGenericMod            , only : leaf_organ, fnrt_organ, sapw_organ
+       use PRTGenericMod            , only : struct_organ, store_organ, repro_organ
+       use PRTGenericMod            , only : all_carbon_elements
+       
+       implicit none
+
+       real (C_DOUBLE),dimension(*), intent(inout) :: ats_biomass_array
+       integer (C_INT), value :: nsites
+       integer (C_INT), value :: num_scls
+
+
+       integer :: s, scpf, scls
+       real(r8) :: sapw_c, struct_c, leaf_c
+       real(r8) :: fnrt_c, store_c
+       real(r8) :: total_c, alive_c
+       integer  :: ft               ! functional type index
+       type(ed_patch_type),pointer  :: cpatch
+       type(ed_cohort_type),pointer :: ccohort
+       real(r8) :: n_density   ! individual of cohort per m2.
+       real(r8) :: n_perm2     ! individuals per m2 for the whole column
+       integer :: io_id
+
+       if (nsites.ne.fates(1)%nsites) then
+          write(iulog,*) 'Number of sites provided by ATS does not match FATES'
+          write(iulog,*) 'Aborting'
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       end if
+
+       if (num_scls.ne.nlevsclass) then
+          write(iulog,*) 'Number of size classes provided by ATS does not match FATES'
+          write(iulog,*) 'Aborting'
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       end if
+          
+       do s=1,nsites
+          cpatch => fates(1)%sites(s)%oldest_patch
+          ccohort => cpatch%shortest
+          do while(associated(ccohort))
+
+             ft = ccohort%pft
+             call sizetype_class_index(ccohort%dbh, ccohort%pft, ccohort%size_class, ccohort%size_by_pft_class)
+
+
+             if ((cpatch%area .gt. 0._r8) .and. (cpatch%total_canopy_area .gt. 0._r8)) then
+                  
+                  ! for quantities that are at the CLM patch level, because of the way 
+                  ! that CLM patches are weighted for radiative purposes this # density needs 
+                  ! to be over either ED patch canopy area or ED patch total area, whichever is less
+                  n_density = ccohort%n/min(cpatch%area,cpatch%total_canopy_area) 
+                  
+                  ! for quantities that are natively at column level, calculate plant 
+                  ! density using whole area
+                  n_perm2   = ccohort%n * AREA_INV
+                  
+               else
+                  n_density = 0.0_r8
+                  n_perm2   = 0.0_r8
+               endif
+             
+             associate(scpf => ccohort%size_by_pft_class, &
+                  scls => ccohort%size_class)
+
+                   ! Mass pools [kgC]
+                   sapw_c   = ccohort%prt%GetState(sapw_organ, all_carbon_elements)
+                   struct_c = ccohort%prt%GetState(struct_organ, all_carbon_elements)
+                   leaf_c   = ccohort%prt%GetState(leaf_organ, all_carbon_elements)
+                   fnrt_c   = ccohort%prt%GetState(fnrt_organ, all_carbon_elements)
+                   store_c  = ccohort%prt%GetState(store_organ, all_carbon_elements)
+ 
+                   alive_c  = leaf_c + fnrt_c + sapw_c
+                   total_c  = alive_c + store_c + struct_c
+
+                   !write(*,*) s, scls, ccohort%n, total_c
+                   io_id = (scls-1)*nsites + s
+                   ats_biomass_array(io_id) = ats_biomass_array(io_id) +  &
+                                total_c * ccohort%n * AREA_INV
+                
+             end associate
+             ccohort => ccohort%taller
+          end do
+
+       end do
+
+     end subroutine calculate_biomass
+
+     
 
 !    ! ====================================================================================
 

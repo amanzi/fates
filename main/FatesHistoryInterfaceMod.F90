@@ -1515,7 +1515,7 @@ end subroutine flush_hvars
 
   ! ====================================================================================
   
-  subroutine update_history_dyn(this,nc,nsites,sites)
+  subroutine update_history_dyn(this, nc, nsites, sites)
     
     ! ---------------------------------------------------------------------------------
     ! This is the call to update the history IO arrays that are expected to only change
@@ -1537,7 +1537,7 @@ end subroutine flush_hvars
     use EDParamsMod,           only : ED_val_history_height_bin_edges
 
     ! Arguments
-    class(fates_history_interface_type)             :: this
+     class(fates_history_interface_type)             :: this
     integer                 , intent(in)            :: nc   ! clump index
     integer                 , intent(in)            :: nsites
     type(ed_site_type)      , intent(inout), target :: sites(nsites)
@@ -1611,8 +1611,8 @@ end subroutine flush_hvars
 
     real(r8), parameter :: tiny = 1.e-5_r8      ! some small number
     real(r8), parameter :: reallytalltrees = 1000.   ! some large number (m)
-    
-    associate( hio_npatches_si         => this%hvars(ih_npatches_si)%r81d, &
+   
+    associate( hio_npatches_si         => this%hvars(ih_npatches_si)%r81d, &    
                hio_ncohorts_si         => this%hvars(ih_ncohorts_si)%r81d, &
                hio_trimming_pa         => this%hvars(ih_trimming_pa)%r81d, &
                hio_area_plant_pa       => this%hvars(ih_area_plant_pa)%r81d, &
@@ -1829,7 +1829,7 @@ end subroutine flush_hvars
 
 
       ! If we don't have dynamics turned on, we just abort these diagnostics
-      if (hlm_use_ed_st3.eq.itrue) return
+      ! if (hlm_use_ed_st3.eq.itrue) return
 
       model_day_int = nint(hlm_model_day)
 
@@ -2233,9 +2233,9 @@ end subroutine flush_hvars
                        hio_nplant_canopy_si_scpf(io_si,scpf) = hio_nplant_canopy_si_scpf(io_si,scpf) + ccohort%n
                        hio_nplant_canopy_si_scls(io_si,scls) = hio_nplant_canopy_si_scls(io_si,scls) + ccohort%n
                        hio_lai_canopy_si_scls(io_si,scls) = hio_lai_canopy_si_scls(io_si,scls) + &
-		                                            ccohort%treelai*ccohort%c_area * AREA_INV
+        	                                            ccohort%treelai*ccohort%c_area * AREA_INV
                        hio_sai_canopy_si_scls(io_si,scls) = hio_sai_canopy_si_scls(io_si,scls) + &
-		                                            ccohort%treesai*ccohort%c_area * AREA_INV
+        	                                            ccohort%treesai*ccohort%c_area * AREA_INV
                        hio_trimming_canopy_si_scls(io_si,scls) = hio_trimming_canopy_si_scls(io_si,scls) + &
                             ccohort%n * ccohort%canopy_trim
                        hio_crown_area_canopy_si_scls(io_si,scls) = hio_crown_area_canopy_si_scls(io_si,scls) + &
@@ -2319,9 +2319,9 @@ end subroutine flush_hvars
                        hio_nplant_understory_si_scpf(io_si,scpf) = hio_nplant_understory_si_scpf(io_si,scpf) + ccohort%n
                        hio_nplant_understory_si_scls(io_si,scls) = hio_nplant_understory_si_scls(io_si,scls) + ccohort%n
                        hio_lai_understory_si_scls(io_si,scls) = hio_lai_understory_si_scls(io_si,scls) + &
-		                                                ccohort%treelai*ccohort%c_area  * AREA_INV
+        	                                                ccohort%treelai*ccohort%c_area  * AREA_INV
                        hio_sai_understory_si_scls(io_si,scls) = hio_sai_understory_si_scls(io_si,scls) + &
-		                                                ccohort%treelai*ccohort%c_area  * AREA_INV
+        	                                                ccohort%treelai*ccohort%c_area  * AREA_INV
                        hio_trimming_understory_si_scls(io_si,scls) = hio_trimming_understory_si_scls(io_si,scls) + &
                             ccohort%n * ccohort%canopy_trim
                        hio_crown_area_understory_si_scls(io_si,scls) = hio_crown_area_understory_si_scls(io_si,scls) + &
