@@ -36,6 +36,36 @@ The FATES and E3SM teams maintain compatability of the NGEET/FATES master branch
 
 The FATES team maintains compatability of the NGEET/FATES master branch with the **CTSM fates_next_api** branch.  Since the FATES team uses this branch for its internal testing, this compatability is tightly (immediately) maintained and these two should always be in sync.  However, CTSM master may become out of sync with FATES master for large periods (months) of time.
 
+## ATS-FATES
+
+1. Define enviromental variable:
+
+export FC=
+export CC=
+export CXX=
+
+export NETCDF_DIR=
+export PIO_DIR=
+export PNETCDF_DIR=
+export ATSFATES_DIR=
+
+
+2. run ./configure-fates
+
+3. cd build
+
+4. make
+
+5. make install
+
+6. cd ../c_driver/
+
+7. make
+
+8. ./Test
+
+
+
 
 
 
