@@ -1,9 +1,5 @@
 #HOME := $(shell /bin/pwd)
  
-CC          = icc
-F77	    = ifort
-
-
 
 ##################################################################
 
@@ -22,12 +18,12 @@ SYSHOME  =  $(HOME)
 INCLDIR  = 
 
 
-LIBDIRS  = -L$(ATSFATES_DIR)/install/lib/ -L$(NETCDF_DIR)/lib/ -L$(MPI_HOME)/lib -L${PNETCDF_DIR}/lib/ -L${PIO_DIR}/lib/
+LIBDIRS  = -L$(ATSFATES_DIR)/install/lib/ -L$(NETCDF_DIR)/lib/ -L${PNETCDF_DIR}/lib/ -L${PIO_DIR}/lib/
 
 
 ##################################################################
 #Libraries
-LIBS = -lparteh -lfates -lshared  -lparteh -lpiof -lpioc -lpnetcdf -lnetcdf -lnetcdff  -lgptl  -lhdf5_hl -lhdf5 -lz -lmpi_mpifh -lmpi -lifcore -lm
+LIBS = -lfates -lshared  -lparteh -lpiof -lpioc -lpnetcdf -lnetcdf -lnetcdff  -lhdf5_hl -lhdf5 -lz -lmpi_mpifh  -lifcore -lm
 
 
 
@@ -42,7 +38,7 @@ EXECS  = Test
 	$(CC) $(CFLAGS) -c $*.c -o $*.o $(INCLDIR)
 
 .f.o:
-	$(F77) $(FFLAGS) -c $*.f -o $*.o $(INCLDIR)
+	$(FC) $(FFLAGS) -c $*.f -o $*.o $(INCLDIR)
 
 
 OBJS =  c_driver.o
