@@ -1343,314 +1343,269 @@ module ATSFatesInterfaceMod
 
 !    ! ====================================================================================
    
-!    subroutine wrap_btran(this,bounds_clump,fn,filterc,soilstate_inst, waterstate_inst, &
-!                          temperature_inst, energyflux_inst,  &
-!                          soil_water_retention_curve)
+    subroutine wrap_btran(array_size, t_soil, h2osoi_liqvol, eff_porosity, watsat, soil_suc) BIND(C)
+      ! ,soilstate_inst, waterstate_inst, &
+      !                    temperature_inst, energyflux_inst,  &
+      !                    soil_water_retention_curve)
       
-!       ! ---------------------------------------------------------------------------------
-!       ! This subroutine calculates btran for FATES, this will be an input boundary
-!       ! condition for FATES photosynthesis/transpiration.
-!       !
-!       ! This subroutine also calculates rootr
-!       ! 
-!       ! ---------------------------------------------------------------------------------
+      ! ---------------------------------------------------------------------------------
+      ! This subroutine calculates btran for FATES, this will be an input boundary
+      ! condition for FATES photosynthesis/transpiration.
+      !
+      ! This subroutine also calculates rootr
+      ! 
+      ! ---------------------------------------------------------------------------------
 
-!       use SoilWaterRetentionCurveMod, only : soil_water_retention_curve_type
+      ! use SoilWaterRetentionCurveMod, only : soil_water_retention_curve_type
 
-!       implicit none
+      implicit none
       
-!       ! Arguments
-!       class(hlm_fates_interface_type), intent(inout) :: this
-!       type(bounds_type)              , intent(in)    :: bounds_clump
-!       integer                , intent(in)            :: fn
-!       integer                , intent(in)            :: filterc(fn) ! This is a list of
-!                                                                         ! columns with exposed veg
-!       type(soilstate_type)   , intent(inout)         :: soilstate_inst
-!       type(waterstate_type)  , intent(in)            :: waterstate_inst
-!       type(temperature_type) , intent(in)            :: temperature_inst
-!       type(energyflux_type)  , intent(inout)         :: energyflux_inst
-!       class(soil_water_retention_curve_type), intent(in) :: soil_water_retention_curve
+      ! Arguments
+      integer(C_INT),intent(in)             :: array_size
+      real(C_DOUBLE), intent(in)            :: t_soil(array_size)
+      real(C_DOUBLE), intent(in)            :: h2osoi_liqvol(array_size)
+      real(C_DOUBLE), intent(in)            :: eff_porosity(array_size)
+      real(C_DOUBLE), intent(in)            :: watsat(array_size)
+      real(C_DOUBLE), intent(in)            :: soil_suc(array_size)      
+      
+                                                                        ! columns with exposed veg
+      ! type(soilstate_type)   , intent(inout)         :: soilstate_inst
+      ! type(waterstate_type)  , intent(in)            :: waterstate_inst
+      ! type(temperature_type) , intent(in)            :: temperature_inst
+      ! type(energyflux_type)  , intent(inout)         :: energyflux_inst
+      ! class(soil_water_retention_curve_type), intent(in) :: soil_water_retention_curve
 
-!       ! local variables
-!       real(r8) :: smp_node ! Soil suction potential, negative, [mm]
-!       real(r8) :: s_node
-!       integer  :: s
-!       integer  :: c
-!       integer  :: j
-!       integer  :: ifp
-!       integer  :: p
-!       integer  :: nlevsoil
-!       integer  :: nc
+      ! local variables
+      real(r8) :: smp_node ! Soil suction potential, negative, [mm]
+      real(r8) :: s_node
+      integer  :: s
+      integer  :: c
+      integer  :: j
+      integer  :: k
+      integer  :: ifp
+      integer  :: p
+      integer  :: nlevsoil
+      integer  :: nc
 
-!       associate(& 
-!          sucsat      => soilstate_inst%sucsat_col           , & ! Input:  [real(r8) (:,:) ]  minimum soil suction (mm) 
-!          watsat      => soilstate_inst%watsat_col           , & ! Input:  [real(r8) (:,:) ]  volumetric soil water at saturation (porosity)
-!          bsw         => soilstate_inst%bsw_col              , & ! Input:  [real(r8) (:,:) ]  Clapp and Hornberger "b" 
-!          eff_porosity => soilstate_inst%eff_porosity_col    , & ! Input:  [real(r8) (:,:) ]  effective porosity = porosity - vol_ice       
-!          t_soisno    => temperature_inst%t_soisno_col       , & ! Input:  [real(r8) (:,:) ]  soil temperature (Kelvin)
-!          h2osoi_liqvol => waterstate_inst%h2osoi_liqvol_col , & ! Input: [real(r8) (:,:) ]  liquid volumetric moisture, will be used for BeTR
-!          btran       => energyflux_inst%btran_patch         , & ! Output: [real(r8) (:)   ]  transpiration wetness factor (0 to 1) 
-!          btran2       => energyflux_inst%btran2_patch       , & ! Output: [real(r8) (:)   ]  
-!          rresis      => energyflux_inst%rresis_patch        , & ! Output: [real(r8) (:,:) ]  root resistance by layer (0-1)  (nlevgrnd) 
-!          rootr       => soilstate_inst%rootr_patch          & ! Output: [real(r8) (:,:) ]  Fraction of water uptake in each layer
-!          )
+      ! associate(& 
+      !    sucsat      => soilstate_inst%sucsat_col           , & ! Input:  [real(r8) (:,:) ]  minimum soil suction (mm) 
+      !    watsat      => soilstate_inst%watsat_col           , & ! Input:  [real(r8) (:,:) ]  volumetric soil water at saturation (porosity)
+      !    bsw         => soilstate_inst%bsw_col              , & ! Input:  [real(r8) (:,:) ]  Clapp and Hornberger "b" 
+      !    eff_porosity => soilstate_inst%eff_porosity_col    , & ! Input:  [real(r8) (:,:) ]  effective porosity = porosity - vol_ice       
+      !    t_soisno    => temperature_inst%t_soisno_col       , & ! Input:  [real(r8) (:,:) ]  soil temperature (Kelvin)
+      !    h2osoi_liqvol => waterstate_inst%h2osoi_liqvol_col , & ! Input: [real(r8) (:,:) ]  liquid volumetric moisture, will be used for BeTR
+      !    btran       => energyflux_inst%btran_patch         , & ! Output: [real(r8) (:)   ]  transpiration wetness factor (0 to 1) 
+      !    btran2       => energyflux_inst%btran2_patch       , & ! Output: [real(r8) (:)   ]  
+      !    rresis      => energyflux_inst%rresis_patch        , & ! Output: [real(r8) (:,:) ]  root resistance by layer (0-1)  (nlevgrnd) 
+      !    rootr       => soilstate_inst%rootr_patch          & ! Output: [real(r8) (:,:) ]  Fraction of water uptake in each layer
+      !    )
 
 
-!         nc = bounds_clump%clump_index
+        nc = 1
 
-!         ! -------------------------------------------------------------------------------
-!         ! Convert input BC's
-!         ! Critical step: a filter is being passed in that dictates which columns have
-!         ! exposed vegetation (above snow).  This is necessary, because various hydrologic
-!         ! variables like h2osoi_liqvol are not calculated and will have uninitialized
-!         ! values outside this list.
-!         !
-!         ! bc_in(s)%filter_btran      (this is in, but is also used in this subroutine)
-!         !
-!         ! We also filter a second time within this list by determining which soil layers
-!         ! have conditions for active uptake based on soil moisture and temperature. This
-!         ! must be determined by FATES (science stuff).  But the list of layers and patches
-!         ! needs to be passed back to the interface, because it then needs to request
-!         ! suction on these layers via ATS/ALM functions.  We cannot wide-swath calculate
-!         ! this on all layers, because values with no moisture or low temps will generate
-!         ! unstable values and cause sigtraps.
-!         ! -------------------------------------------------------------------------------
+        ! -------------------------------------------------------------------------------
+        ! Convert input BC's
+        ! Critical step: a filter is being passed in that dictates which columns have
+        ! exposed vegetation (above snow).  This is necessary, because various hydrologic
+        ! variables like h2osoi_liqvol are not calculated and will have uninitialized
+        ! values outside this list.
+        !
+        ! bc_in(s)%filter_btran      (this is in, but is also used in this subroutine)
+        !
+        ! We also filter a second time within this list by determining which soil layers
+        ! have conditions for active uptake based on soil moisture and temperature. This
+        ! must be determined by FATES (science stuff).  But the list of layers and patches
+        ! needs to be passed back to the interface, because it then needs to request
+        ! suction on these layers via ATS/ALM functions.  We cannot wide-swath calculate
+        ! this on all layers, because values with no moisture or low temps will generate
+        ! unstable values and cause sigtraps.
+        ! -------------------------------------------------------------------------------
+        k = 0
+        do s = 1, fates(nc)%nsites
+           nlevsoil = fates(nc)%bc_in(s)%nlevsoil
+              
+           fates(nc)%bc_in(s)%filter_btran = .true.
+           
+           do j = 1,nlevsoil
+              k=k+1
+              fates(nc)%bc_in(s)%tempk_sl(j)         = t_soil(k)
+              fates(nc)%bc_in(s)%h2o_liqvol_sl(j)    = h2osoi_liqvol(k)
+              fates(nc)%bc_in(s)%eff_porosity_sl(j)  = eff_porosity(k)
+              fates(nc)%bc_in(s)%watsat_sl(j)        = watsat(k)
+              fates(nc)%bc_in(s)%smp_sl(j)           = soil_suc(k)
+           end do
+
+        end do
+
         
-!         do s = 1, this%fates(nc)%nsites
-!            c = this%f2hmap(nc)%fcolumn(s)
-!            nlevsoil = this%fates(nc)%bc_in(s)%nlevsoil
+        ! -------------------------------------------------------------------------------
+        ! Suction and active uptake layers calculated, lets calculate uptake (btran)
+        ! This will calculate internals, as well as output boundary conditions: 
+        ! btran, rootr
+        ! -------------------------------------------------------------------------------
 
-!            ! Check to see if this column is in the exposed veg filter
-!            if( any(filterc==c) )then
+        call btran_ed(fates(nc)%nsites, &
+             fates(nc)%sites,  &
+             fates(nc)%bc_in,  &
+             fates(nc)%bc_out)
+
+        ! -------------------------------------------------------------------------------
+        ! Convert output BC's
+        ! For ATS/ALM this wrapper provides return variables that should
+        ! be similar to that of calc_root_moist_stress().  However,
+        ! ATS/ALM-FATES simulations will no make use of rresis, btran or btran2
+        ! outside of FATES. We do not have code in place to calculate btran2 or
+        ! rresis right now, so we force to bad.  We have btran calculated so we
+        ! pass it in case people want diagnostics.  rootr is actually the only
+        ! variable that will be used, as it is needed to help distribute the
+        ! the transpiration sink to the appropriate layers. (RGK)
+        ! -------------------------------------------------------------------------------
+
+        ! do s = 1, this%fates(nc)%nsites
+        !    nlevsoil = this%fates(nc)%bc_in(s)%nlevsoil
+        !    c = this%f2hmap(nc)%fcolumn(s)
+        !    do ifp = 1, this%fates(nc)%sites(s)%youngest_patch%patchno
               
-!               this%fates(nc)%bc_in(s)%filter_btran = .true.
-!               do j = 1,nlevsoil
-!                  this%fates(nc)%bc_in(s)%tempk_sl(j)         = t_soisno(c,j)
-!                  this%fates(nc)%bc_in(s)%h2o_liqvol_sl(j)    = h2osoi_liqvol(c,j)
-!                  this%fates(nc)%bc_in(s)%eff_porosity_sl(j)  = eff_porosity(c,j)
-!                  this%fates(nc)%bc_in(s)%watsat_sl(j)        = watsat(c,j)
-!               end do
-
-!            else
-!               this%fates(nc)%bc_in(s)%filter_btran = .false.
-!               this%fates(nc)%bc_in(s)%tempk_sl(:)         = -999._r8
-!               this%fates(nc)%bc_in(s)%h2o_liqvol_sl(:)    = -999._r8
-!               this%fates(nc)%bc_in(s)%eff_porosity_sl(:)  = -999._r8
-!               this%fates(nc)%bc_in(s)%watsat_sl(:)        = -999._r8
-!            end if
-
-!         end do
-
-!         ! -------------------------------------------------------------------------------
-!         ! This function evaluates the ground layer to determine if
-!         ! root water uptake can happen, and soil suction should even
-!         ! be calculated.  We ask FATES for a boundary condition output
-!         ! logical because we don't want science calculations in the interface
-!         ! yet... hydrology (suction calculation) is provided by the host
-!         ! so we need fates to tell us where to calculate suction
-!         ! but not calculate it itself. Yeah, complicated, but thats life.
-!         ! -------------------------------------------------------------------------------
-!         call get_active_suction_layers(this%fates(nc)%nsites, &
-!              this%fates(nc)%sites,  &
-!              this%fates(nc)%bc_in,  &
-!              this%fates(nc)%bc_out)
-
-!         ! Now that the active layers of water uptake have been decided by fates
-!         ! Calculate the suction that is passed back to fates
-!         ! Note that the filter_btran is unioned with active_suction_sl
-
-!         do s = 1, this%fates(nc)%nsites
-!            c = this%f2hmap(nc)%fcolumn(s)
-!            nlevsoil = this%fates(nc)%bc_in(s)%nlevsoil
-
-!            do j = 1,nlevsoil
-!               if(this%fates(nc)%bc_out(s)%active_suction_sl(j)) then
-!                  s_node = max(h2osoi_liqvol(c,j)/eff_porosity(c,j),0.01_r8)
-!                  call soil_water_retention_curve%soil_suction( soilstate_inst%sucsat_col(c,j), &
-!                        s_node, &
-!                        soilstate_inst%bsw_col(c,j), &
-!                        smp_node)
-
-!                  ! Non-fates places a maximum (which is a negative upper bound) on smp
-
-!                  this%fates(nc)%bc_in(s)%smp_sl(j)           = smp_node
-!               end if
-!            end do
-!         end do
-        
-!         ! -------------------------------------------------------------------------------
-!         ! Suction and active uptake layers calculated, lets calculate uptake (btran)
-!         ! This will calculate internals, as well as output boundary conditions: 
-!         ! btran, rootr
-!         ! -------------------------------------------------------------------------------
-
-!         call btran_ed(this%fates(nc)%nsites, &
-!              this%fates(nc)%sites,  &
-!              this%fates(nc)%bc_in,  &
-!              this%fates(nc)%bc_out)
-
-!         ! -------------------------------------------------------------------------------
-!         ! Convert output BC's
-!         ! For ATS/ALM this wrapper provides return variables that should
-!         ! be similar to that of calc_root_moist_stress().  However,
-!         ! ATS/ALM-FATES simulations will no make use of rresis, btran or btran2
-!         ! outside of FATES. We do not have code in place to calculate btran2 or
-!         ! rresis right now, so we force to bad.  We have btran calculated so we
-!         ! pass it in case people want diagnostics.  rootr is actually the only
-!         ! variable that will be used, as it is needed to help distribute the
-!         ! the transpiration sink to the appropriate layers. (RGK)
-!         ! -------------------------------------------------------------------------------
-
-!         do s = 1, this%fates(nc)%nsites
-!            nlevsoil = this%fates(nc)%bc_in(s)%nlevsoil
-!            c = this%f2hmap(nc)%fcolumn(s)
-!            do ifp = 1, this%fates(nc)%sites(s)%youngest_patch%patchno
+        !       p = ifp+col_pp%pfti(c)
               
-!               p = ifp+col_pp%pfti(c)
-              
-!               do j = 1,nlevsoil
+        !       do j = 1,nlevsoil
                  
-!                  rresis(p,j) = -999.9  ! We do not calculate this correctly
-!                  ! it should not thought of as valid output until we decide to.
-!                  rootr(p,j)  = this%fates(nc)%bc_out(s)%rootr_pasl(ifp,j)
-!                  btran(p)    = this%fates(nc)%bc_out(s)%btran_pa(ifp)
-!                  btran2(p)   = -999.9  ! Not available, force to nonsense
+        !          rresis(p,j) = -999.9  ! We do not calculate this correctly
+        !          ! it should not thought of as valid output until we decide to.
+        !          rootr(p,j)  = this%fates(nc)%bc_out(s)%rootr_pasl(ifp,j)
+        !          btran(p)    = this%fates(nc)%bc_out(s)%btran_pa(ifp)
+        !          btran2(p)   = -999.9  ! Not available, force to nonsense
                  
-!               end do
-!            end do
-!         end do
-!       end associate
+        !       end do
+        !    end do
+        ! end do
+      ! end associate
 
-!    end subroutine wrap_btran
+   end subroutine wrap_btran
 
 !    ! ====================================================================================
+
+    subroutine wrap_photosynthesis(dtime, p_atm, array_size, t_soil) BIND(C)
+
+ !   subroutine wrap_photosynthesis(this, bounds_clump, fn, filterp, &
+ !         esat_tv, eair, oair, cair, rb, dayl_factor,             &
+ !         atm2lnd_inst, temperature_inst, canopystate_inst, photosyns_inst)
    
-!    subroutine wrap_photosynthesis(this, bounds_clump, fn, filterp, &
-!          esat_tv, eair, oair, cair, rb, dayl_factor,             &
-!          atm2lnd_inst, temperature_inst, canopystate_inst, photosyns_inst)
+ !    use shr_log_mod       , only : errMsg => shr_log_errMsg
+ !    use abortutils        , only : endrun
+ !    use decompMod         , only : bounds_type
+ !    use clm_varcon        , only : rgas, tfrz, namep  
+ !    use clm_varctl        , only : iulog
+ !    use perf_mod          , only : t_startf, t_stopf
+ !    use quadraticMod      , only : quadratic
+ !    use EDTypesMod        , only : dinc_ed
+ !    use EDtypesMod        , only : ed_patch_type, ed_cohort_type, ed_site_type
    
-!     use shr_log_mod       , only : errMsg => shr_log_errMsg
-!     use abortutils        , only : endrun
-!     use decompMod         , only : bounds_type
-!     use clm_varcon        , only : rgas, tfrz, namep  
-!     use clm_varctl        , only : iulog
-!     use perf_mod          , only : t_startf, t_stopf
-!     use quadraticMod      , only : quadratic
-!     use EDTypesMod        , only : dinc_ed
-!     use EDtypesMod        , only : ed_patch_type, ed_cohort_type, ed_site_type
-   
-!     !
-!     ! !ARGUMENTS:
-!     class(hlm_fates_interface_type), intent(inout) :: this
-!     type(bounds_type)      , intent(in)            :: bounds_clump
-!     integer                , intent(in)            :: fn                          ! size of pft filter
-!     integer                , intent(in)            :: filterp(fn)                 ! pft filter
-!     real(r8)               , intent(in)            :: esat_tv(bounds_clump%begp: )      ! saturation vapor pressure at t_veg (Pa)
-!     real(r8)               , intent(in)            :: eair( bounds_clump%begp: )        ! vapor pressure of canopy air (Pa)
-!     real(r8)               , intent(in)            :: oair( bounds_clump%begp: )        ! Atmospheric O2 partial pressure (Pa)
-!     real(r8)               , intent(in)            :: cair( bounds_clump%begp: )        ! Atmospheric CO2 partial pressure (Pa)
-!     real(r8)               , intent(in)            :: rb( bounds_clump%begp: )          ! boundary layer resistance (s/m)
-!     real(r8)               , intent(in)            :: dayl_factor( bounds_clump%begp: ) ! scalar (0-1) for daylength
-!     type(atm2lnd_type)     , intent(in)            :: atm2lnd_inst
-!     type(temperature_type) , intent(in)            :: temperature_inst
-!     type(canopystate_type) , intent(inout)         :: canopystate_inst
-!     type(photosyns_type)   , intent(inout)         :: photosyns_inst
+    !
+      ! !ARGUMENTS:
+      real(C_DOUBLE), intent(in)            :: p_atm, dtime
+      integer(C_INT),intent(in)             :: array_size
+      real(C_DOUBLE), intent(in)            :: t_soil(array_size)
+ !    integer                , intent(in)            :: fn                          ! size of pft filter
+ !    integer                , intent(in)            :: filterp(fn)                 ! pft filter
+ !    real(r8)               , intent(in)            :: esat_tv(bounds_clump%begp: )      ! saturation vapor pressure at t_veg (Pa)
+ !    real(r8)               , intent(in)            :: eair( bounds_clump%begp: )        ! vapor pressure of canopy air (Pa)
+ !    real(r8)               , intent(in)            :: oair( bounds_clump%begp: )        ! Atmospheric O2 partial pressure (Pa)
+ !    real(r8)               , intent(in)            :: cair( bounds_clump%begp: )        ! Atmospheric CO2 partial pressure (Pa)
+ !    real(r8)               , intent(in)            :: rb( bounds_clump%begp: )          ! boundary layer resistance (s/m)
+ !    real(r8)               , intent(in)            :: dayl_factor( bounds_clump%begp: ) ! scalar (0-1) for daylength
+ !    type(atm2lnd_type)     , intent(in)            :: atm2lnd_inst
+ !    type(temperature_type) , intent(in)            :: temperature_inst
+ !    type(canopystate_type) , intent(inout)         :: canopystate_inst
+ !    type(photosyns_type)   , intent(inout)         :: photosyns_inst
 
-!     integer                                        :: nlevsoil
-!     integer                                        :: s,c,p,ifp,j,icp,nc
-!     real(r8)                                       :: dtime
+    integer                                        :: nlevsoil
+    integer                                        :: s,c,p,ifp,j,icp,nc,k
 
-!     call t_startf('edpsn')
-!     associate(&
-!           t_soisno  => temperature_inst%t_soisno_col , &
-!           t_veg     => temperature_inst%t_veg_patch  , &
-!           tgcm      => temperature_inst%thm_patch    , &
-!           forc_pbot => atm2lnd_inst%forc_pbot_downscaled_col, &
-!           rssun     => photosyns_inst%rssun_patch  , &
-!           rssha     => photosyns_inst%rssha_patch,   &
-!           psnsun    => photosyns_inst%psnsun_patch,  &
-!           psnsha    => photosyns_inst%psnsha_patch)
-      
+    call t_startf('edpsn')     
 
-!       nc = bounds_clump%clump_index
+    nc = 1
+    k = 0
+    do s = 1, fates(nc)%nsites
 
-!       do s = 1, this%fates(nc)%nsites
-         
-!          c = this%f2hmap(nc)%fcolumn(s)
-!          nlevsoil = this%fates(nc)%bc_in(s)%nlevsoil
+       nlevsoil = fates(nc)%bc_in(s)%nlevsoil
 
-!          do j = 1,nlevsoil
-!             this%fates(nc)%bc_in(s)%t_soisno_sl(j)   = t_soisno(c,j)  ! soil temperature (Kelvin)
-!          end do
-!          this%fates(nc)%bc_in(s)%forc_pbot           = forc_pbot(c)   ! atmospheric pressure (Pa)
+       do j = 1,nlevsoil
+          k=k+1
+          fates(nc)%bc_in(s)%t_soisno_sl(j)   = t_soil(k)  ! soil temperature (Kelvin)
+       end do
+       fates(nc)%bc_in(s)%forc_pbot           = p_atm   ! atmospheric pressure (Pa)
+    end do
 
-!          do ifp = 1, this%fates(nc)%sites(s)%youngest_patch%patchno
+    do s = 1, fates(nc)%nsites
+
+       do ifp = 1, fates(nc)%sites(s)%youngest_patch%patchno
             
-!             p = ifp+col_pp%pfti(c)
+ !            p = ifp+col_pp%pfti(c)
 
-!             ! Check to see if this patch is in the filter
-!             ! Note that this filter is most likely changing size, and getting smaller
-!             ! and smaller as more patch have converged on solution
-!             if( any(filterp==p) )then
+ !            ! Check to see if this patch is in the filter
+ !            ! Note that this filter is most likely changing size, and getting smaller
+ !            ! and smaller as more patch have converged on solution
+ !            if( any(filterp==p) )then
 
-!                ! This filter is flushed to 1 before the canopyflux stability iterator
-!                ! It is set to status 2 if it is an active patch within the iterative loop
-!                ! After photosynthesis is called, it is upgraded to 3 if it was called.
-!                ! After all iterations we can evaluate which patches have a final flag
-!                ! of 3 to check if we missed any.
+ !               ! This filter is flushed to 1 before the canopyflux stability iterator
+ !               ! It is set to status 2 if it is an active patch within the iterative loop
+ !               ! After photosynthesis is called, it is upgraded to 3 if it was called.
+ !               ! After all iterations we can evaluate which patches have a final flag
+ !               ! of 3 to check if we missed any.
 
-!                this%fates(nc)%bc_in(s)%filter_photo_pa(ifp) = 2
-!                this%fates(nc)%bc_in(s)%dayl_factor_pa(ifp) = dayl_factor(p) ! scalar (0-1) for daylength
-!                this%fates(nc)%bc_in(s)%esat_tv_pa(ifp)     = esat_tv(p)     ! saturation vapor pressure at t_veg (Pa)
-!                this%fates(nc)%bc_in(s)%eair_pa(ifp)        = eair(p)        ! vapor pressure of canopy air (Pa)
-!                this%fates(nc)%bc_in(s)%oair_pa(ifp)        = oair(p)        ! Atmospheric O2 partial pressure (Pa)
-!                this%fates(nc)%bc_in(s)%cair_pa(ifp)        = cair(p)        ! Atmospheric CO2 partial pressure (Pa)
-!                this%fates(nc)%bc_in(s)%rb_pa(ifp)          = rb(p)          ! boundary layer resistance (s/m)
-!                this%fates(nc)%bc_in(s)%t_veg_pa(ifp)       = t_veg(p)       ! vegetation temperature (Kelvin)     
-!                this%fates(nc)%bc_in(s)%tgcm_pa(ifp)        = tgcm(p)        ! air temperature at agcm 
-!                                                                             ! reference height (kelvin)
-!             end if
-!          end do
-!       end do
+ !               this%fates(nc)%bc_in(s)%filter_photo_pa(ifp) = 2
+ !               this%fates(nc)%bc_in(s)%dayl_factor_pa(ifp) = dayl_factor(p) ! scalar (0-1) for daylength
+ !               this%fates(nc)%bc_in(s)%esat_tv_pa(ifp)     = esat_tv(p)     ! saturation vapor pressure at t_veg (Pa)
+ !               this%fates(nc)%bc_in(s)%eair_pa(ifp)        = eair(p)        ! vapor pressure of canopy air (Pa)
+ !               this%fates(nc)%bc_in(s)%oair_pa(ifp)        = oair(p)        ! Atmospheric O2 partial pressure (Pa)
+ !               this%fates(nc)%bc_in(s)%cair_pa(ifp)        = cair(p)        ! Atmospheric CO2 partial pressure (Pa)
+ !               this%fates(nc)%bc_in(s)%rb_pa(ifp)          = rb(p)          ! boundary layer resistance (s/m)
+ !               this%fates(nc)%bc_in(s)%t_veg_pa(ifp)       = t_veg(p)       ! vegetation temperature (Kelvin)     
+ !               this%fates(nc)%bc_in(s)%tgcm_pa(ifp)        = tgcm(p)        ! air temperature at agcm 
+ !                                                                            ! reference height (kelvin)
+ !            end if
+       end do
+    end do
 
-!       dtime = get_step_size()
+
       
-!       ! Call photosynthesis
-      
-!       call FatesPlantRespPhotosynthDrive (this%fates(nc)%nsites, &
-!                                 this%fates(nc)%sites,  &
-!                                 this%fates(nc)%bc_in,  &
-!                                 this%fates(nc)%bc_out, &
-!                                 dtime)
+    ! Call photosynthesis
+    
+    call FatesPlantRespPhotosynthDrive (fates(nc)%nsites, &
+         fates(nc)%sites,  &
+         fates(nc)%bc_in,  &
+         fates(nc)%bc_out, &
+         dtime)
 
-!       ! Perform a double check to see if all patches on naturally vegetated columns
-!       ! were activated for photosynthesis
-!       ! ---------------------------------------------------------------------------------
-!       do icp = 1,fn
-!          p = filterp(icp)
-!          c = veg_pp%column(p)
-!          s = this%f2hmap(nc)%hsites(c)
-!          ! do if structure here and only pass natveg columns
-!          ifp = p-col_pp%pfti(c)
-!          if(this%fates(nc)%bc_in(s)%filter_photo_pa(ifp) /= 2)then
-!             write(iulog,*) 'Not all patches on the natveg column in the photosynthesis'
-!             write(iulog,*) 'filter ran photosynthesis'
-!             call endrun(msg=errMsg(sourcefile, __LINE__))
-!          else
-!             this%fates(nc)%bc_in(s)%filter_photo_pa(ifp) = 3
-!             rssun(p) = this%fates(nc)%bc_out(s)%rssun_pa(ifp)
-!             rssha(p) = this%fates(nc)%bc_out(s)%rssha_pa(ifp)
-            
-!             ! These fields are marked with a bad-value flag
-!             photosyns_inst%psnsun_patch(p)   = spval
-!             photosyns_inst%psnsha_patch(p)   = spval
-!          end if
-!       end do
-      
-!     end associate
-!     call t_stopf('edpsn')
+    !      ! Perform a double check to see if all patches on naturally vegetated columns
+    !      ! were activated for photosynthesis
+    !      ! ---------------------------------------------------------------------------------
+    !      do icp = 1,fn
+    !         p = filterp(icp)
+    !         c = veg_pp%column(p)
+    !         s = this%f2hmap(nc)%hsites(c)
+    !         ! do if structure here and only pass natveg columns
+    !         ifp = p-col_pp%pfti(c)
+    !         if(this%fates(nc)%bc_in(s)%filter_photo_pa(ifp) /= 2)then
+    !            write(iulog,*) 'Not all patches on the natveg column in the photosynthesis'
+    !            write(iulog,*) 'filter ran photosynthesis'
+    !            call endrun(msg=errMsg(sourcefile, __LINE__))
+    !         else
+    !            this%fates(nc)%bc_in(s)%filter_photo_pa(ifp) = 3
+    !            rssun(p) = this%fates(nc)%bc_out(s)%rssun_pa(ifp)
+    !            rssha(p) = this%fates(nc)%bc_out(s)%rssha_pa(ifp)
 
-!  end subroutine wrap_photosynthesis
+    !            ! These fields are marked with a bad-value flag
+    !            photosyns_inst%psnsun_patch(p)   = spval
+    !            photosyns_inst%psnsha_patch(p)   = spval
+    !         end if
+    !      end do
+
+    !    end associate
+    call t_stopf('edpsn')
+
+    end subroutine wrap_photosynthesis
 
 !  ! ======================================================================================
 
