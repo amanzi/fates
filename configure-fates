@@ -1,12 +1,8 @@
 #!/bin/bash
 
-
-
-
-
-#rm -rf build
-#mkdir build
-#cd build
+rm -rf build
+mkdir build
+cd build
 
 #UPDATE
 #NETCDF_DIR=/home/scratch/ascem/amanzi/tpls/install/Ubuntu-16.04-x86_64/openmpi-2.1.1-intel-17.0.1/Release-0.95.0-static/
