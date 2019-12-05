@@ -8,6 +8,10 @@ The column has nlevel=5 soil layears and nlevdecomp=1 decomp layers.
 #include "ISO_Fortran_binding.h"
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <mathimf.h>
+
+
 
 
 typedef struct {  
@@ -19,6 +23,18 @@ typedef struct {
   double latdeg, londeg;
 } site_info;
 
+
+typedef struct {  
+  double dayl_factor;  // scalar (0-1) for daylength
+  double esat_tv;      // saturation vapor pressure at t_veg (Pa)
+  double eair;         // vapor pressure of canopy air (Pa)
+  double oair;         // Atmospheric O2 partial pressure (Pa)
+  double cair;         // Atmospheric CO2 partial pressure (Pa)
+  double rb;           // boundary layer resistance (s/m)
+  double t_veg;        // vegetation temperature (Kelvin)
+  double tgcm;         // air temperature at agcm reference height (Kelvin)
+} PhotoSynthesisInput;
+
 void init_ats_fates(int*, site_info*);
 void init_soil_depths(int*, int*, site_info*, double*, double*, double*, double*);
 void init_coldstart(int* );
@@ -28,7 +44,9 @@ extern void fatesreadparameters();
 extern void fatesreadpfts();
 extern void set_fates_global_elements();
 extern void get_nlevsclass(int*);
-
+extern void wrap_btran(int*, double*, double*, double*, double*, double*);
+extern void wrap_photosynthesis(double*, double*, int*, double*, PhotoSynthesisInput*);
+  
 
 extern void dynamics_driv_per_site(int*, int*, site_info*, double*,
                             double*, double*, double*, double*, double*);
@@ -126,7 +144,7 @@ main()
 
   /* One time step */
   
-  double dtime = 1.;
+
   double h2osoi_vol_col[nlevel];
 
   for (int i=0;i<nlevel;i++) h2osoi_vol_col[i]=1;
@@ -136,13 +154,49 @@ main()
          rh24_patch[site[0].patchno],
          wind24_patch[site[0].patchno];
 
-  double decomp_cpools_sourcesink_met[site[0].nlevdecomp],
-         decomp_cpools_sourcesink_cel[site[0].nlevdecomp],
-         decomp_cpools_sourcesink_lig[site[0].nlevdecomp];
+  double dtime = 1800.;
+  int array_size = nlevel * num_sites;
+  double t_soil[array_size], poro[array_size], eff_poro[array_size];
+  double sat[array_size], soil_suc[array_size];
+  double bsw = 0.5;
+  double soil_suc_min = 10;
+  PhotoSynthesisInput photosys_in;
 
 
+  double p_atm = 101325;
+  double Time = 0;
+  
+
+  for (int n=0; n<48; n++){
+    for (int i=0;i<array_size;i++) t_soil[i] = 290;
+    for (int i=0;i<array_size;i++) poro[i] = 0.7;
+    for (int i=0;i<array_size;i++) eff_poro[i] = 0.7;
+    for (int i=0;i<array_size;i++) sat[i] = 1.;
+    
+    for (int i=0;i<array_size;i++){
+      soil_suc[i] = -soil_suc_min * pow(sat[i], bsw);
+    }
+
+    wrap_btran(&array_size, t_soil, sat, eff_poro, poro, soil_suc);
+
+
+    photosys_in.dayl_factor = 0.7;
+    photosys_in.esat_tv = 0.;       // define
+    photosys_in.eair = 0.;          // define
+    photosys_in.oair = 0.;          // define
+    photosys_in.cair = 0.;          // define
+    photosys_in.rb = 0.;            // define
+    photosys_in.t_veg = 305;        // define
+    photosys_in.tgcm = 305;         // define
+
+    wrap_photosynthesis(&dtime, &p_atm, &array_size, t_soil, &photosys_in);
+
+    Time += dtime;
+                        
+  }
 
   
+  double day_sec = 86400.;  
   for (int i=0; i<num_sites; i++){
     int s = i+1;
 
@@ -151,9 +205,9 @@ main()
     rh24_patch[0] = 80;
     wind24_patch[0] = 2.0;
     
-    dynamics_driv_per_site(&clump, &s, &(site[i]),&dtime,
-                           h2osoi_vol_col,
-                           temp_veg24_patch, prec24_patch, rh24_patch, wind24_patch);
+    dynamics_driv_per_site( &clump,  &s,  &(site[i]), &dtime,
+                            h2osoi_vol_col, temp_veg24_patch,
+                            prec24_patch, rh24_patch, wind24_patch);
   }
 
   printf("Finished successfully.\n");
