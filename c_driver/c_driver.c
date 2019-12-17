@@ -64,8 +64,8 @@ main()
   int retval;
  
   
-  char *fates_file = "../parameter_files/fates_params_default_c20191007.nc";
-  char *clm_file = "../parameter_files/clm_params_c180301.nc";
+  char *fates_file = "/turquoise/usr/projects/veg/cxu/fates-ats2/c_driver/fates_params_default_c20191007.nc";
+  char *clm_file = "/turquoise/usr/projects/veg/cxu/fates-ats2/c_driver/clm_params_c180301.nc";
 
   retval = CFI_establish(&fatesdesc, fates_file, CFI_attribute_other, CFI_type_char, strlen(fates_file), 0, NULL);
   retval = CFI_establish(&clmdesc, clm_file, CFI_attribute_other, CFI_type_char, strlen(clm_file), 0, NULL); 
@@ -181,13 +181,13 @@ main()
 
 
     photosys_in.dayl_factor = 0.7;
-    photosys_in.esat_tv = 0.;       // define
-    photosys_in.eair = 0.;          // define
-    photosys_in.oair = 0.;          // define
-    photosys_in.cair = 0.;          // define
-    photosys_in.rb = 0.;            // define
-    photosys_in.t_veg = 305;        // define
-    photosys_in.tgcm = 305;         // define
+    photosys_in.esat_tv = 2300.;     // Saturated vapor pressure in leaves (Pa)
+    photosys_in.eair = 2000.;        // Air water vapor pressure (Pa)
+    photosys_in.oair = 21280;        // Oxygen partial pressure
+    photosys_in.cair = 5985;       // CO2 partial pressure
+    photosys_in.rb = 3.;            // Boundary layer resistance (s/m)
+    photosys_in.t_veg = 305;        // Leaf temperature (K)
+    photosys_in.tgcm = 305;         // Air temperature (K)
 
     wrap_photosynthesis(&dtime, &p_atm, &array_size, t_soil, &photosys_in);
 
