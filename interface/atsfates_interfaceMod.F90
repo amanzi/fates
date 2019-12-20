@@ -1234,17 +1234,17 @@ module ATSFatesInterfaceMod
     
 
     
-!    ! ======================================================================================
+    ! ======================================================================================
    
-!    subroutine wrap_sunfrac(this,bounds_clump,atm2lnd_inst,canopystate_inst)
+    subroutine wrap_sunfrac(array_size, forc_solad, forc_solai) BIND(C)
          
-!       ! ---------------------------------------------------------------------------------
-!       ! This interface function is a wrapper call on ED_SunShadeFracs. The only
-!       ! returned variable is a patch vector, fsun_patch, which describes the fraction
-!       ! of the canopy that is exposed to sun.
-!       ! ---------------------------------------------------------------------------------
+       ! ---------------------------------------------------------------------------------
+       ! This interface function is a wrapper call on ED_SunShadeFracs. The only
+       ! returned variable is a patch vector, fsun_patch, which describes the fraction
+       ! of the canopy that is exposed to sun.
+       ! ---------------------------------------------------------------------------------
       
-!       implicit none
+       implicit none
       
 !       ! Input Arguments
 !       class(hlm_fates_interface_type), intent(inout) :: this
@@ -1252,7 +1252,10 @@ module ATSFatesInterfaceMod
       
 !       ! direct and diffuse downwelling radiation (W/m2)
 !       type(atm2lnd_type),intent(in)        :: atm2lnd_inst
-      
+        integer(C_INT),intent(in)             :: array_size
+        real(C_DOUBLE), intent(in)            :: forc_solad(array_size)          ! direct radiation (W/m**2); 1=visible lights; 2=near infrared radition
+        real(C_DOUBLE), intent(in)            :: forc_solai(array_size)          ! diffuse radiation (W/m**2);  1=visible lights; 2=near infrared radition 
+
 !       ! Input/Output Arguments to ATS
 !       type(canopystate_type),intent(inout) :: canopystate_inst
       
@@ -1261,7 +1264,10 @@ module ATSFatesInterfaceMod
 !       integer  :: g                           ! global index of the host gridcell
 !       integer  :: c                           ! global index of the host column
 
-!       integer  :: s                           ! FATES site index
+        integer  :: s                           ! FATES site index
+        integer  :: nc
+
+        nc = 1
 !       integer  :: ifp                         ! FATEs patch index
 !                                               ! this is the order increment of patch
 !                                               ! on the site
@@ -1282,7 +1288,7 @@ module ATSFatesInterfaceMod
 !         ! The sun-shade calculations are performed only on FATES patches
 !         ! -------------------------------------------------------------------------------
 
-!         do s = 1, this%fates(nc)%nsites
+         do s = 1, fates(nc)%nsites
 !            c = this%f2hmap(nc)%fcolumn(s)
 !            g = col_pp%gridcell(c)
 
@@ -1291,21 +1297,21 @@ module ATSFatesInterfaceMod
 
 !               p = ifp+col_pp%pfti(c)
 
-!               this%fates(nc)%bc_in(s)%solad_parb(ifp,:) = forc_solad(g,:)
-!               this%fates(nc)%bc_in(s)%solai_parb(ifp,:) = forc_solai(g,:)
+               fates(nc)%bc_in(s)%solad_parb(1,:) = forc_solad(:)
+               fates(nc)%bc_in(s)%solai_parb(1,:) = forc_solai(:)
 
 !            end do
-!         end do
+         end do
 
-!         ! -------------------------------------------------------------------------------
-!         ! Call FATES public function to calculate internal sun/shade structures
-!         ! as well as total patch sun/shade fraction output boundary condition
-!         ! -------------------------------------------------------------------------------
+         ! -------------------------------------------------------------------------------
+         ! Call FATES public function to calculate internal sun/shade structures
+         ! as well as total patch sun/shade fraction output boundary condition
+         ! -------------------------------------------------------------------------------
 
-!         call ED_SunShadeFracs(this%fates(nc)%nsites, &
-!              this%fates(nc)%sites,  &
-!              this%fates(nc)%bc_in,  &
-!              this%fates(nc)%bc_out)
+         call ED_SunShadeFracs(fates(nc)%nsites, &
+              fates(nc)%sites,  &
+              fates(nc)%bc_in,  &
+              fates(nc)%bc_out)
 
 !         ! -------------------------------------------------------------------------------
 !         ! Transfer the FATES output boundary condition for canopy sun/shade fraction
@@ -1324,7 +1330,7 @@ module ATSFatesInterfaceMod
 
 !       end associate
 
-!    end subroutine wrap_sunfrac
+    end subroutine wrap_sunfrac
    
 !    ! ===================================================================================
 
@@ -1584,10 +1590,9 @@ module ATSFatesInterfaceMod
 
 !  end subroutine wrap_accumulatefluxes
 
-!  ! ======================================================================================
+! ======================================================================================
 
-!  subroutine wrap_canopy_radiation(this, bounds_clump, &
-!          num_vegsol, filter_vegsol, coszen, surfalb_inst)
+  subroutine wrap_canopy_radiation(jday,array_size, albgrd,albgri) BIND(C)
 
 
 !     ! Arguments
@@ -1602,7 +1607,17 @@ module ATSFatesInterfaceMod
     
 !     ! locals
 !     integer                                    :: s,c,p,ifp,icp,nc
+      real   (C_DOUBLE), intent(in) :: jday   ! Julian cal day (1.xx to 365.xx)
+      integer(C_INT),intent(in)  :: array_size   !radiation index size = 2
+      real(C_DOUBLE), intent(in) :: albgrd(array_size)  !ground albedo (direct) 1=visiable; 2=near infrared (nir)
+      real(C_DOUBLE), intent(in) :: albgri(array_size)  !ground albedo (diffuse) 1=visiable; 2=near infrared (nir)
+      real (r8) :: lat    ! Centered latitude degrees(-90,...90)
+      real (r8) :: lon    ! Centered longitude degrees(0...360)
+      real (r8) :: coszen   ! cosine solar zenith angle for next time step
+      integer  :: s         ! the site index
+      integer  :: nc         ! the thread index
 
+      nc = 1
 !     associate(&
 !          albgrd_col   =>    surfalb_inst%albgrd_col         , & !in
 !          albgri_col   =>    surfalb_inst%albgri_col         , & !in
@@ -1616,19 +1631,21 @@ module ATSFatesInterfaceMod
 
 !     nc = bounds_clump%clump_index
 
-!     do s = 1, this%fates(nc)%nsites
+     do s = 1, fates(nc)%nsites
 
 !        c = this%f2hmap(nc)%fcolumn(s)
 !        do ifp = 1, this%fates(nc)%sites(s)%youngest_patch%patchno
           
 !           p = ifp+col_pp%pfti(c)
           
-!           if( any(filter_vegsol==p) )then
-    
-!              this%fates(nc)%bc_in(s)%filter_vegzen_pa(ifp) = .true.
-!              this%fates(nc)%bc_in(s)%coszen_pa(ifp)  = coszen(p)
-!              this%fates(nc)%bc_in(s)%albgr_dir_rb(:) = albgrd_col(c,:)
-!              this%fates(nc)%bc_in(s)%albgr_dif_rb(:) = albgri_col(c,:)
+!           if( any(filter_vegsol==p) )then !cxu: need to updated for non-vegetation land;
+              lat= fates(nc)%sites(s)%lat 
+              lon= fates(nc)%sites(s)%lon
+              coszen = shr_orb_cosz(jday,lat,lon)
+              fates(nc)%bc_in(s)%filter_vegzen_pa(1) = .true.
+              fates(nc)%bc_in(s)%coszen_pa(1)  = coszen
+              fates(nc)%bc_in(s)%albgr_dir_rb(:) = albgrd(:)
+              fates(nc)%bc_in(s)%albgr_dif_rb(:) = albgri(:)
 
 !           else
              
@@ -1637,12 +1654,12 @@ module ATSFatesInterfaceMod
 !           end if
 
 !        end do
-!     end do
+     end do
 
-!     call ED_Norman_Radiation(this%fates(nc)%nsites,  &
-!          this%fates(nc)%sites, &
-!          this%fates(nc)%bc_in,  &
-!          this%fates(nc)%bc_out)
+     call ED_Norman_Radiation(fates(nc)%nsites,  &
+          fates(nc)%sites, &
+          fates(nc)%bc_in,  &
+          fates(nc)%bc_out)
     
 !     ! Pass FATES BC's back to HLM
 !     ! -----------------------------------------------------------------------------------
@@ -1669,7 +1686,7 @@ module ATSFatesInterfaceMod
     
 !   end associate
 
-!  end subroutine wrap_canopy_radiation
+  end subroutine wrap_canopy_radiation
 
 !  ! ======================================================================================
 
@@ -2313,5 +2330,36 @@ module ATSFatesInterfaceMod
 
    
 !  end subroutine hlm_bounds_to_fates_bounds
+
+  real(r8) FUNCTION shr_orb_cosz(jday,lat,lon)
+
+   !----------------------------------------------------------------------------
+   !
+   ! FUNCTION to return the cosine of the solar zenith angle.
+   ! Assumes 365.0 days/year.
+   !
+   !--------------- Code History -----------------------------------------------
+   !
+   ! Original Author: Brian Kauffman
+   ! Date:            Jan/98
+   ! History:         adapted from statement FUNCTION in share/orb_cosz.h
+   !
+   !----------------------------------------------------------------------------
+
+   real   (r8),intent(in) :: jday   ! Julian cal day (1.xx to 365.xx)
+   real   (r8),intent(in) :: lat    ! Centered latitude (degrees, -90,...,90)
+   real   (r8),intent(in) :: lon    ! Centered longitude (degrees, 0, ...,360)
+   real   (r8) :: latr    ! Centered latitude (radians)
+   real   (r8) :: lonr    ! Centered longitude (radians)
+   real   (r8) :: declin ! Solar declination (radians)
+   real   (r8), parameter :: dg2radian =0.0174533_r8 !degree to radian converion factor
+   !----------------------------------------------------------------------------
+   latr = lat * dg2radian
+   lonr = lon * dg2radian
+   declin = -23.44_r8*dg2radian*cos(360/365*(jday+10)*dg2radian)  
+   shr_orb_cosz = sin(latr)*sin(declin) - &
+   &              cos(latr)*cos(declin)*cos(jday*2.0_r8*3.1415_r8 + lonr)
+
+  END FUNCTION shr_orb_cosz
 
 end module ATSFatesInterfaceMod
