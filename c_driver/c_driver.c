@@ -33,6 +33,10 @@ typedef struct {
   double rb;           // boundary layer resistance (s/m)
   double t_veg;        // vegetation temperature (Kelvin)
   double tgcm;         // air temperature at agcm reference height (Kelvin)
+  double solad[2]; //direct radiation (W/m**2); 1=visible lights; 2=near infrared radition
+  double solai[2]; //diffuse radiation (W/m**2); 1=visible lights; 2=near infrared radition
+  double albgrd[2]; //!ground albedo (direct) 1=visiable; 2=near infrared (nir)
+  double albgri[2]; //ground albedo (diffuse) 1=visiable; 2=near infrared (nir)
 } PhotoSynthesisInput;
 
 void init_ats_fates(int*, site_info*);
@@ -165,7 +169,8 @@ main()
 
   double p_atm = 101325;
   double Time = 0;
-  
+  int   radnum = 2; //number of radiation bands
+  double jday; //julian days (1-365)
 
   for (int n=0; n<48; n++){
     for (int i=0;i<array_size;i++) t_soil[i] = 290;
@@ -179,7 +184,7 @@ main()
 
     wrap_btran(&array_size, t_soil, sat, eff_poro, poro, soil_suc);
 
-
+    
     photosys_in.dayl_factor = 0.7;
     photosys_in.esat_tv = 2300.;     // Saturated vapor pressure in leaves (Pa)
     photosys_in.eair = 2000.;        // Air water vapor pressure (Pa)
@@ -188,6 +193,19 @@ main()
     photosys_in.rb = 3.;            // Boundary layer resistance (s/m)
     photosys_in.t_veg = 305;        // Leaf temperature (K)
     photosys_in.tgcm = 305;         // Air temperature (K)
+    photosys_in.albgrd[0] = 0.15;
+    photosys_in.albgrd[1] = 0.15;
+    photosys_in.albgri[0] = 0.1;
+    photosys_in.albgri[1] = 0.1;
+    photosys_in.solad[0] = 200.0;
+    photosys_in.solad[1] = 40.0;
+    photosys_in.solai[0] = 50.0;
+    photosys_in.solai[1] = 10.0;    
+    jday = 1.0+n/48.0;
+
+    wrap_sunfrac(&radnum, photosys_in.solad, photosys_in.solai);
+
+    wrap_canopy_radiation(&jday,&radnum, photosys_in.albgrd, photosys_in.albgri);
 
     wrap_photosynthesis(&dtime, &p_atm, &array_size, t_soil, &photosys_in);
 
