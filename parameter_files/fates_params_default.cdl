@@ -291,6 +291,12 @@ variables:
 	double fates_phen_stress_decid(fates_pft) ;
 		fates_phen_stress_decid:units = "logical flag" ;
 		fates_phen_stress_decid:long_name = "Binary flag for stress-deciduous leaf habit" ;
+	double fates_phen_cold_size_threshold(fates_pft) ;
+		fates_phen_cold_size_threshold:units = "cm" ;
+		fates_phen_cold_size_threshold:long_name = "the dbh size above which will lead to phenology-related stem and leaf drop" ;
+	double fates_phen_stem_drop_fraction(fates_pft) ;
+		fates_phen_stem_drop_fraction:units = "fraction" ;
+		fates_phen_stem_drop_fraction:long_name = "fraction of stems to drop for non-woody species during drought/cold" ;
 	double fates_phenflush_fraction(fates_pft) ;
 		fates_phenflush_fraction:units = "fraction" ;
 		fates_phenflush_fraction:long_name = "Upon bud-burst, the maximum fraction of storage carbon used for flushing leaves" ;
@@ -502,8 +508,8 @@ variables:
 		fates_fire_miner_total:units = "fraction" ;
 		fates_fire_miner_total:long_name = "spitfire parameter, total mineral content, Table A1 Thonicke et al 2010" ;
 	double fates_fire_nignitions ;
-		fates_fire_nignitions:units = "ignitions per day" ;
-		fates_fire_nignitions:long_name = "number of daily ignitions" ;
+		fates_fire_nignitions:units = "ignitions per year per km2" ;
+		fates_fire_nignitions:long_name = "number of annual ignitions per square km" ;
 	double fates_fire_part_dens ;
 		fates_fire_part_dens:units = "kg/m2" ;
 		fates_fire_part_dens:long_name = "spitfire parameter, oven dry particle density, Table A1 Thonicke et al 2010" ;
@@ -903,6 +909,10 @@ data:
  fates_phen_season_decid = 0, 0, 1, 0, 0, 1, 0, 0, 1, 1, 0, 0 ;
 
  fates_phen_stress_decid = 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 1 ;
+ 
+ fates_phen_cold_size_threshold = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
+ 
+ fates_phen_stem_drop_fraction = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
 
  fates_phenflush_fraction = _, _, 0.5, _, 0.5, 0.5, _, 0.5, 0.5, 0.5, 0.5, 0.5 ;
 
@@ -1104,7 +1114,7 @@ data:
 
  fates_cwd_flig = 0.24 ;
 
- fates_fire_drying_ratio = 13000 ;
+ fates_fire_drying_ratio = 66000 ;
 
  fates_fire_durat_slope = -11.06 ;
 
@@ -1172,7 +1182,7 @@ data:
 
  fates_phen_drought_threshold = 0.15 ;
 
- fates_phen_mindayson = 30 ;
+ fates_phen_mindayson = 90 ;
 
  fates_phen_ncolddayslim = 5 ;
 
