@@ -50,8 +50,8 @@ extern void set_fates_global_elements();
 extern void get_nlevsclass(int*);
 extern void wrap_btran(int*, double*, double*, double*, double*, double*);
 extern void wrap_photosynthesis(double*, double*, int*, double*, PhotoSynthesisInput*);
-  
-
+extern void wrap_sunfrac(int* array_size, double *forc_solad, double *forc_solai);
+extern void wrap_canopy_radiation(double* jday, int* array_size, double* albgrd, double *albgri);
 extern void dynamics_driv_per_site(int*, int*, site_info*, double*,
                             double*, double*, double*, double*, double*);
 
@@ -68,8 +68,8 @@ main()
   int retval;
  
   
-  char *fates_file = "/turquoise/usr/projects/veg/cxu/fates-ats2/c_driver/fates_params_default_c20191007.nc";
-  char *clm_file = "/turquoise/usr/projects/veg/cxu/fates-ats2/c_driver/clm_params_c180301.nc";
+  char *fates_file = "../parameter_files/fates_params_default_c20191007.nc";
+  char *clm_file = "../parameter_files/clm_params_c180301.nc";
 
   retval = CFI_establish(&fatesdesc, fates_file, CFI_attribute_other, CFI_type_char, strlen(fates_file), 0, NULL);
   retval = CFI_establish(&clmdesc, clm_file, CFI_attribute_other, CFI_type_char, strlen(clm_file), 0, NULL); 
@@ -173,6 +173,7 @@ main()
   double jday; //julian days (1-365)
 
   for (int n=0; n<48; n++){
+
     for (int i=0;i<array_size;i++) t_soil[i] = 290;
     for (int i=0;i<array_size;i++) poro[i] = 0.7;
     for (int i=0;i<array_size;i++) eff_poro[i] = 0.7;
