@@ -1,0 +1,14 @@
+1. module load intel cmake
+2. source load_env_var_amanziats
+3. source configure-fates
+4. make
+5. make install
+6. git clone https://github.com/amanzi/amanzi.git $AMANZI_SRC
+7. cd $AMANZI_SRC
+8. git checkout ats-fates.0
+9. git submodule update --init --remote
+10. cd src/physics/ats/
+11. git checkout dsv/sediment
+12. cd $AMANZI_BUILD
+13. source config-amanzi-ats-fates
+
