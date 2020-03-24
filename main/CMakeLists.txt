@@ -25,7 +25,7 @@ MESSAGE( STATUS "CMAKE_Fortran_MODULE_DIRECTORY:     " ${CMAKE_Fortran_MODULE_DI
 # FFLAGS depend on the compiler
 get_filename_component (Fortran_COMPILER_NAME ${CMAKE_Fortran_COMPILER} NAME)
 
-include_directories(${CMAKE_INSTALL_PREFIX}/../shared
+include_directories(${SHARED_SOURCE_DIR}
                     ${CMAKE_INSTALL_PREFIX}/include )
 
                   set(fates_src_files

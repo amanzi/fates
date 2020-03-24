@@ -1,3 +1,5 @@
+project(SHARED)
+
 enable_language (C Fortran)
 set(genf90_files shr_infnan_mod.F90.in shr_assert_mod.F90.in)
 
