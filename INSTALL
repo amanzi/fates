@@ -12,3 +12,39 @@
 12. cd $AMANZI_BUILD
 13. source config-amanzi-ats-fates
 
+config-amanzi-ats-fates:
+
+#!/bin/tcsh                                                                                                                                                                                        
+
+
+set name=amanzi_ats_fates_openmpi
+set build=build_${name}
+set install=${name}
+
+rm -rf ${build}
+mkdir ${build}
+cd ${build}
+
+
+
+cmake \
+        -C {$TPLS_DIR}/share/cmake/amanzi-tpl-config.cmake \
+    -D CMAKE_BUILD_TYPE="Debug"\
+    -D CMAKE_C_COMPILER=${CC} \
+    -D CMAKE_CXX_COMPILER=${CXX} \
+    -D CMAKE_Fortran_COMPILER=${FC} \
+    -D ENABLE_Unstructured:BOOL=TRUE \
+    -D ENABLE_Structured:BOOL=FALSE \
+    -D ENABLE_NATIVE_XML_OUTPUT:BOOL=TRUE\
+    -D ENABLE_ALQUIMIA:BOOL=FALSE\
+    -D ENABLE_FATES:BOOL=TRUE\
+    -D ENABLE_AmanziPhysicsModule:BOOL=FALSE\
+    -D ENABLE_ATSPhysicsModule:BOOL=TRUE\
+    -D ENABLE_INDIVIDUAL_TESTS:BOOL=FALSE\
+    -D ENABLE_Regression_Tests:BOOL=FALSE\
+    -D CMAKE_INSTALL_PREFIX=${AMANZI_INSTALL}/{$install} \
+        ${AMANZI_SRC}
+
+make -j 8
+make install
+
