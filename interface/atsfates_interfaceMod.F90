@@ -706,7 +706,8 @@ module ATSFatesInterfaceMod
 !                                          waterstate_inst,  &
 !                                          canopystate_inst, &
 !                                          frictionvel_inst)
-      
+       
+        call wrap_update_atsfates_dyn(nc)
        ! ---------------------------------------------------------------------------------
        ! Part IV: 
        ! Update history IO fields that depend on ecosystem dynamics
@@ -1236,7 +1237,7 @@ module ATSFatesInterfaceMod
     
     ! ======================================================================================
    
-    subroutine wrap_sunfrac(array_size, forc_solad, forc_solai) BIND(C)
+    subroutine wrap_sunfrac(nc, array_size, forc_solad, forc_solai) BIND(C)
          
        ! ---------------------------------------------------------------------------------
        ! This interface function is a wrapper call on ED_SunShadeFracs. The only
@@ -1252,7 +1253,8 @@ module ATSFatesInterfaceMod
       
 !       ! direct and diffuse downwelling radiation (W/m2)
 !       type(atm2lnd_type),intent(in)        :: atm2lnd_inst
-        integer(C_INT),intent(in)             :: array_size
+        integer(C_INT),intent(in)             :: nc                              !clump index
+	integer(C_INT),intent(in)             :: array_size
         real(C_DOUBLE), intent(in)            :: forc_solad(array_size)          ! direct radiation (W/m**2); 1=visible lights; 2=near infrared radition
         real(C_DOUBLE), intent(in)            :: forc_solai(array_size)          ! diffuse radiation (W/m**2);  1=visible lights; 2=near infrared radition 
 
@@ -1265,9 +1267,9 @@ module ATSFatesInterfaceMod
 !       integer  :: c                           ! global index of the host column
 
         integer  :: s                           ! FATES site index
-        integer  :: nc
+!        integer  :: nc
 
-        nc = 1
+!        nc = 1
 !       integer  :: ifp                         ! FATEs patch index
 !                                               ! this is the order increment of patch
 !                                               ! on the site
@@ -1361,7 +1363,7 @@ module ATSFatesInterfaceMod
 
 !    ! ====================================================================================
    
-    subroutine wrap_btran(array_size, t_soil, h2osoi_liqvol, eff_porosity, watsat, soil_suc) BIND(C)
+    subroutine wrap_btran(nc, array_size, t_soil, h2osoi_liqvol, eff_porosity, watsat, soil_suc) BIND(C)
       ! ,soilstate_inst, waterstate_inst, &
       !                    temperature_inst, energyflux_inst,  &
       !                    soil_water_retention_curve)
@@ -1379,6 +1381,7 @@ module ATSFatesInterfaceMod
       implicit none
       
       ! Arguments
+      integer(C_INT),intent(in)             :: nc                              !clump index
       integer(C_INT),intent(in)             :: array_size
       real(C_DOUBLE), intent(in)            :: t_soil(array_size)          !soil temperature (Kelvin)
       real(C_DOUBLE), intent(in)            :: h2osoi_liqvol(array_size)   !liquid volumetric moisture, will be used for BeTR
@@ -1403,9 +1406,9 @@ module ATSFatesInterfaceMod
       integer  :: ifp
       integer  :: p
       integer  :: nlevsoil
-      integer  :: nc
+      !integer  :: nc
 
-      nc = 1
+      !nc = 1
 
       ! -------------------------------------------------------------------------------
       ! Convert input BC's
@@ -1458,11 +1461,12 @@ module ATSFatesInterfaceMod
 
 !    ! ====================================================================================
 
-   subroutine wrap_photosynthesis(dtime, p_atm, array_size, t_soil, photosys_in) BIND(C)
+   subroutine wrap_photosynthesis(nc, dtime, p_atm, array_size, t_soil, photosys_in) BIND(C)
 
 
    
      !ARGUMENTS:
+     integer(C_INT),intent(in)             :: nc                              !clump index
      real(C_DOUBLE), intent(in)            :: p_atm, dtime
      integer(C_INT),intent(in)             :: array_size
      real(C_DOUBLE), intent(in)            :: t_soil(array_size)
@@ -1471,11 +1475,11 @@ module ATSFatesInterfaceMod
 
      !LOCAL:
      integer                               :: nlevsoil
-     integer                               :: s,c,p,ifp,j,icp,nc,k
+     integer                               :: s,c,p,ifp,j,icp,k
 
 !     call t_startf('edpsn')     
 
-     nc = 1
+!     nc = 1
      k = 0
      do s = 1, fates(nc)%nsites
 
@@ -1549,13 +1553,15 @@ module ATSFatesInterfaceMod
 
 !  ! ======================================================================================
 
-!  subroutine wrap_accumulatefluxes(this, bounds_clump, fn, filterp)
+  subroutine wrap_accumulatefluxes(nc, dtime) BIND(C)
 
 !    ! !ARGUMENTS:
 !    class(hlm_fates_interface_type), intent(inout) :: this
 !    type(bounds_type)              , intent(in)    :: bounds_clump
 !    integer                        , intent(in)    :: fn                   ! size of pft filter
 !    integer                        , intent(in)    :: filterp(fn)          ! pft filter
+     integer(C_INT),intent(in)             :: nc    ! Clump index
+     real(C_DOUBLE), intent(in)            :: dtime !time step, seconds
    
 !    ! Locals
 !    integer                                        :: s,c,p,ifp,icp
@@ -1576,11 +1582,12 @@ module ATSFatesInterfaceMod
 
 
 !     dtime = get_step_size()
-!     call  AccumulateFluxes_ED(this%fates(nc)%nsites,  &
-!                                this%fates(nc)%sites, &
-!                                this%fates(nc)%bc_in,  &
-!                                this%fates(nc)%bc_out, &
-!                                dtime)
+
+     call  AccumulateFluxes_ED(fates(nc)%nsites,  &
+                                fates(nc)%sites, &
+                                fates(nc)%bc_in,  &
+                                fates(nc)%bc_out, &
+                                dtime)
 
     
 !     call this%fates_hist%update_history_prod(nc, &
@@ -1588,11 +1595,11 @@ module ATSFatesInterfaceMod
 !                                this%fates(nc)%sites, &
 !                                dtime)
 
-!  end subroutine wrap_accumulatefluxes
+  end subroutine wrap_accumulatefluxes
 
 ! ======================================================================================
 
-  subroutine wrap_canopy_radiation(jday,array_size, albgrd,albgri) BIND(C)
+  subroutine wrap_canopy_radiation(nc, jday,array_size, albgrd,albgri) BIND(C)
 
 
 !     ! Arguments
@@ -1607,6 +1614,7 @@ module ATSFatesInterfaceMod
     
 !     ! locals
 !     integer                                    :: s,c,p,ifp,icp,nc
+      integer(C_INT),intent(in)             :: nc                              !clump index
       real   (C_DOUBLE), intent(in) :: jday   ! Julian cal day (1.xx to 365.xx)
       integer(C_INT),intent(in)  :: array_size   !radiation index size = 2
       real(C_DOUBLE), intent(in) :: albgrd(array_size)  !ground albedo (direct) 1=visiable; 2=near infrared (nir)
@@ -1615,9 +1623,9 @@ module ATSFatesInterfaceMod
       real (r8) :: lon    ! Centered longitude degrees(0...360)
       real (r8) :: coszen   ! cosine solar zenith angle for next time step
       integer  :: s         ! the site index
-      integer  :: nc         ! the thread index
+!     integer  :: nc         ! the thread index
 
-      nc = 1
+!      nc = 1
 !     associate(&
 !          albgrd_col   =>    surfalb_inst%albgrd_col         , & !in
 !          albgri_col   =>    surfalb_inst%albgri_col         , & !in
