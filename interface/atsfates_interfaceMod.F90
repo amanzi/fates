@@ -535,8 +535,8 @@ module ATSFatesInterfaceMod
       fates(nc)%bc_in(site_id)%dz_decomp_sisl(1:nlevdecomp) = dzsoi_decomp(1:nlevdecomp)
 
       !call init_history_io(bounds_proc)      
-      ! ! Report Fates Parameters (debug flag in lower level routines)
-      !call FatesReportParameters()
+      ! Report Fates Parameters (debug flag in lower level routines)
+      call FatesReportParameters(.true.)
       
       !write(*, *) "Exit Init_soil_depth fates"
       return
