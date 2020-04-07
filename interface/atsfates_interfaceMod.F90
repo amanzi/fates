@@ -507,6 +507,7 @@ module ATSFatesInterfaceMod
       integer :: j  ! Depth index
       integer :: nlevsoil
       integer :: nlevdecomp
+      logical :: masterproc
 
       !write(*, *) "Enter Init_soil_depth"
 
@@ -536,7 +537,8 @@ module ATSFatesInterfaceMod
 
       !call init_history_io(bounds_proc)      
       ! Report Fates Parameters (debug flag in lower level routines)
-      call FatesReportParameters(.true.)
+      masterproc = .true.  !cx: need to be passed from the function
+      call FatesReportParameters(masterproc)
       
       !write(*, *) "Exit Init_soil_depth fates"
       return
@@ -1289,8 +1291,7 @@ module ATSFatesInterfaceMod
 !         ! Convert input BC's
 !         ! The sun-shade calculations are performed only on FATES patches
 !         ! -------------------------------------------------------------------------------
-
-         do s = 1, fates(nc)%nsites
+          do s = 1, fates(nc)%nsites
 !            c = this%f2hmap(nc)%fcolumn(s)
 !            g = col_pp%gridcell(c)
 
@@ -1336,7 +1337,7 @@ module ATSFatesInterfaceMod
    
 !    ! ===================================================================================
 
-!    subroutine prep_canopyfluxes(this, bounds_clump )
+    subroutine prep_canopyfluxes(nc) BIND(C)
 
 !      ! ----------------------------------------------------------------------
 !      ! the main function for calculating photosynthesis is called within a
@@ -1345,21 +1346,29 @@ module ATSFatesInterfaceMod
 !      ! The photosyns_ structure is currently unused, leaving it for now
 !      ! in case we want to do any value initializing in future.
 !      ! ----------------------------------------------------------------------
-    
+
+       implicit none  
+       
 !      ! Arguments
+       integer(C_INT),intent(in)             :: nc                              !clump index
 !      class(hlm_fates_interface_type), intent(inout) :: this
 !      type(bounds_type)              , intent(in)    :: bounds_clump
 
-!      ! locals
-!      integer                                        :: c,s
+      ! locals
+       integer                                        :: s
 !      integer                                        :: nc
 
 !      nc = bounds_clump%clump_index
-!      do s = 1, this%fates(nc)%nsites
-!         ! filter flag == 1 means that this patch has not been called for photosynthesis
-!         this%fates(nc)%bc_in(s)%filter_photo_pa(:) = 1
-!      end do
-!   end subroutine prep_canopyfluxes
+       do s = 1, fates(nc)%nsites
+         ! filter flag == 1 means that this patch has not been called for photosynthesis
+         fates(nc)%bc_in(s)%filter_photo_pa(1) = 1
+        ! set transpiration input boundary condition to zero. The exposed
+        ! vegetation filter may not even call every patch.
+!        if (use_fates_planthydro) then
+!           this%fates(nc)%bc_in(s)%qflx_transp_pa(:) = 0._r8
+!        end if
+      end do
+    end subroutine prep_canopyfluxes
 
 !    ! ====================================================================================
    
@@ -1522,9 +1531,19 @@ module ATSFatesInterfaceMod
          fates(nc)%bc_out, &
          dtime)
 
-    !      ! Perform a double check to see if all patches on naturally vegetated columns
-    !      ! were activated for photosynthesis
-    !      ! ---------------------------------------------------------------------------------
+    ! Perform a double check to see if all patches on naturally vegetated columns
+    ! were activated for photosynthesis
+    ! ---------------------------------------------------------------------------------
+    do s = 1, fates(nc)%nsites	 
+         if(fates(nc)%bc_in(s)%filter_photo_pa(1) /= 2)then
+                write(iulog,*) 'Not all patches on the natveg column in the photosynthesis'
+                write(iulog,*) 'filter ran photosynthesis'
+                call endrun(msg=errMsg(sourcefile, __LINE__))
+         else  
+	    fates(nc)%bc_in(s)%filter_photo_pa(ifp) = 3
+	 end if
+	  
+    enddo
     !      do icp = 1,fn
     !         p = filterp(icp)
     !         c = veg_pp%column(p)
@@ -1596,7 +1615,8 @@ module ATSFatesInterfaceMod
 !                                dtime)
 
   end subroutine wrap_accumulatefluxes
-
+  
+ 
 ! ======================================================================================
 
   subroutine wrap_canopy_radiation(nc, jday,array_size, albgrd,albgri) BIND(C)
