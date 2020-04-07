@@ -1885,7 +1885,7 @@ contains
      ! Argument
      logical, intent(in) :: is_master  ! Only log if this is the master proc
 
-     logical, parameter :: debug_report = .false.
+     logical, parameter :: debug_report = .true.
      character(len=32),parameter :: fmt0 = '(a,100(F12.4,1X))'
 
      integer :: npft,ipft
