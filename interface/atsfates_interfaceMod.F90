@@ -126,7 +126,7 @@ module ATSFatesInterfaceMod
    use EDCanopyStructureMod  , only : canopy_summarization, update_hlm_dynamics
    use FatesPlantRespPhotosynthMod, only : FatesPlantRespPhotosynthDrive
    use EDAccumulateFluxesMod , only : AccumulateFluxes_ED
-!   use EDPhysiologyMod       , only : flux_into_litter_pools
+   use EDPhysiologyMod       , only : FluxIntoLitterPools
    use FatesPlantHydraulicsMod, only : hydraulics_drive
    use FatesPlantHydraulicsMod, only : HydrSiteColdStart
    use FatesPlantHydraulicsMod, only : InitHydrSites
@@ -561,10 +561,10 @@ module ATSFatesInterfaceMod
       type(SiteInfo),intent(in)                 :: site_info
       real(C_DOUBLE), intent(in)                :: dtime
       real(C_DOUBLE), intent(in)                :: h2osoi_vol_col(site_info%nlevbed)
-      real(C_DOUBLE), intent(in)                :: temp_veg24_patch(site_info%patchno)
-      real(C_DOUBLE), intent(in)                :: prec24_patch(site_info%patchno)
-      real(C_DOUBLE), intent(in)                :: rh24_patch(site_info%patchno)
-      real(C_DOUBLE), intent(in)                :: wind24_patch(site_info%patchno)
+      real(C_DOUBLE), intent(in)                :: temp_veg24_patch(1)
+      real(C_DOUBLE), intent(in)                :: prec24_patch(1)
+      real(C_DOUBLE), intent(in)                :: rh24_patch(1)
+      real(C_DOUBLE), intent(in)                :: wind24_patch(1) !site_info%patchno
       ! real(C_DOUBLE), intent(inout)             :: decomp_cpools_sourcesink_met(site_info%nlevdecomp)
       ! real(C_DOUBLE), intent(inout)             :: decomp_cpools_sourcesink_cel(site_info%nlevdecomp)
       ! real(C_DOUBLE), intent(inout)             :: decomp_cpools_sourcesink_lig(site_info%nlevdecomp)
@@ -642,16 +642,16 @@ module ATSFatesInterfaceMod
       do ifp = 1, fates(nc)%sites(site_id)%youngest_patch%patchno
          
          fates(nc)%bc_in(site_id)%t_veg24_pa(ifp) = &
-              temp_veg24_patch(ifp)
+              temp_veg24_patch(1)
 
          fates(nc)%bc_in(site_id)%precip24_pa(ifp) = &
-              prec24_patch(ifp)
+              prec24_patch(1)
 
          fates(nc)%bc_in(site_id)%relhumid24_pa(ifp) = &
-              rh24_patch(ifp)
+              rh24_patch(1)
 
          fates(nc)%bc_in(site_id)%wind24_pa(ifp) = &
-              wind24_patch(ifp)
+              wind24_patch(1)
 
       end do
 
@@ -685,12 +685,13 @@ module ATSFatesInterfaceMod
       
        ! call subroutine to aggregate ED litter output fluxes and 
        ! package them for handing across interface
-       ! call flux_into_litter_pools(fates(nc)%nsites, &
-       !       fates(nc)%sites,  &
-       !       fates(nc)%bc_in,  &
-       !       fates(nc)%bc_out)
+        call FluxIntoLitterPools(fates(nc)%nsites, &
+              fates(nc)%sites,  &
+              fates(nc)%bc_in,  &
+              fates(nc)%bc_out)
 
-        ! ---------------------------------------------------------------------------------       ! Part III: Process FATES output into the dimensions and structures that are part
+        ! ---------------------------------------------------------------------------------       
+	! Part III: Process FATES output into the dimensions and structures that are part
         ! of the HLMs API.  (column, depth, and litter fractions)
         ! ---------------------------------------------------------------------------------
        ! call UpdateLitterFluxes_per_site(nc, site_id, dtime, &
@@ -812,7 +813,7 @@ module ATSFatesInterfaceMod
 
 
 
-     subroutine calculate_biomass(ats_biomass_array, nsites, num_scls) BIND(C)
+     subroutine calculate_biomass(nc, ats_biomass_array, nsites, num_scls) BIND(C)
 
        use FatesInterfaceMod, only : nlevsclass
        use EDtypesMod          , only : nfsc
@@ -838,6 +839,7 @@ module ATSFatesInterfaceMod
        
        implicit none
 
+       integer(C_INT),intent(in)                   :: nc   ! Clump
        real (C_DOUBLE),dimension(*), intent(inout) :: ats_biomass_array
        integer (C_INT), value :: nsites
        integer (C_INT), value :: num_scls
@@ -867,14 +869,14 @@ module ATSFatesInterfaceMod
        end if
           
        do s=1,nsites
-          cpatch => fates(1)%sites(s)%oldest_patch
+          cpatch => fates(nc)%sites(s)%oldest_patch
           ccohort => cpatch%shortest
           do while(associated(ccohort))
 
              ft = ccohort%pft
              call sizetype_class_index(ccohort%dbh, ccohort%pft, ccohort%size_class, ccohort%size_by_pft_class)
 
-
+           
              if ((cpatch%area .gt. 0._r8) .and. (cpatch%total_canopy_area .gt. 0._r8)) then
                   
                   ! for quantities that are at the CLM patch level, because of the way 
@@ -1272,7 +1274,7 @@ module ATSFatesInterfaceMod
 !        integer  :: nc
 
 !        nc = 1
-!       integer  :: ifp                         ! FATEs patch index
+        integer  :: ifp                         ! FATEs patch index
 !                                               ! this is the order increment of patch
 !                                               ! on the site
 !       integer  :: nc                          ! clump index
@@ -1295,15 +1297,15 @@ module ATSFatesInterfaceMod
 !            c = this%f2hmap(nc)%fcolumn(s)
 !            g = col_pp%gridcell(c)
 
-!            do ifp = 1, this%fates(nc)%sites(s)%youngest_patch%patchno
+            do ifp = 1, fates(nc)%sites(s)%youngest_patch%patchno
 !            !do ifp = 1, this%fates(nc)%bc_in(s)%npatches
 
 !               p = ifp+col_pp%pfti(c)
 
-               fates(nc)%bc_in(s)%solad_parb(1,:) = forc_solad(:)
-               fates(nc)%bc_in(s)%solai_parb(1,:) = forc_solai(:)
+               fates(nc)%bc_in(s)%solad_parb(ifp,:) = forc_solad(:)
+               fates(nc)%bc_in(s)%solai_parb(ifp,:) = forc_solai(:)
 
-!            end do
+            end do
          end do
 
          ! -------------------------------------------------------------------------------
@@ -1361,7 +1363,7 @@ module ATSFatesInterfaceMod
 !      nc = bounds_clump%clump_index
        do s = 1, fates(nc)%nsites
          ! filter flag == 1 means that this patch has not been called for photosynthesis
-         fates(nc)%bc_in(s)%filter_photo_pa(1) = 1
+         fates(nc)%bc_in(s)%filter_photo_pa(:) = 1
         ! set transpiration input boundary condition to zero. The exposed
         ! vegetation filter may not even call every patch.
 !        if (use_fates_planthydro) then
@@ -1509,15 +1511,15 @@ module ATSFatesInterfaceMod
         ! After all iterations we can evaluate which patches have a final flag
         ! of 3 to check if we missed any.
         
-        fates(nc)%bc_in(s)%filter_photo_pa(1) = 2
-        fates(nc)%bc_in(s)%dayl_factor_pa(1) = photosys_in%dayl_factor ! scalar (0-1) for daylength
-        fates(nc)%bc_in(s)%esat_tv_pa(1)     = photosys_in%esat_tv     ! saturation vapor pressure at t_veg (Pa)
-        fates(nc)%bc_in(s)%eair_pa(1)        = photosys_in%eair        ! vapor pressure of canopy air (Pa)
-        fates(nc)%bc_in(s)%oair_pa(1)        = photosys_in%oair        ! Atmospheric O2 partial pressure (Pa)
-        fates(nc)%bc_in(s)%cair_pa(1)        = photosys_in%cair        ! Atmospheric CO2 partial pressure (Pa)
-        fates(nc)%bc_in(s)%rb_pa(1)          = photosys_in%rb          ! boundary layer resistance (s/m)
-        fates(nc)%bc_in(s)%t_veg_pa(1)       = photosys_in%t_veg       ! vegetation temperature (Kelvin)     
-        fates(nc)%bc_in(s)%tgcm_pa(1)        = photosys_in%tgcm        ! air temperature at agcm 
+        fates(nc)%bc_in(s)%filter_photo_pa(:) = 2
+        fates(nc)%bc_in(s)%dayl_factor_pa(:) = photosys_in%dayl_factor ! scalar (0-1) for daylength
+        fates(nc)%bc_in(s)%esat_tv_pa(:)     = photosys_in%esat_tv     ! saturation vapor pressure at t_veg (Pa)
+        fates(nc)%bc_in(s)%eair_pa(:)        = photosys_in%eair        ! vapor pressure of canopy air (Pa)
+        fates(nc)%bc_in(s)%oair_pa(:)        = photosys_in%oair        ! Atmospheric O2 partial pressure (Pa)
+        fates(nc)%bc_in(s)%cair_pa(:)        = photosys_in%cair        ! Atmospheric CO2 partial pressure (Pa)
+        fates(nc)%bc_in(s)%rb_pa(:)          = photosys_in%rb          ! boundary layer resistance (s/m)
+        fates(nc)%bc_in(s)%t_veg_pa(:)       = photosys_in%t_veg       ! vegetation temperature (Kelvin)     
+        fates(nc)%bc_in(s)%tgcm_pa(:)        = photosys_in%tgcm        ! air temperature at agcm 
                                                                        ! reference height (kelvin)
      end do
 
@@ -1534,16 +1536,17 @@ module ATSFatesInterfaceMod
     ! Perform a double check to see if all patches on naturally vegetated columns
     ! were activated for photosynthesis
     ! ---------------------------------------------------------------------------------
-    do s = 1, fates(nc)%nsites	 
-         if(fates(nc)%bc_in(s)%filter_photo_pa(1) /= 2)then
+    do s = 1, fates(nc)%nsites	
+       do p=1, fates(nc)%sites(s)%youngest_patch%patchno
+         if(fates(nc)%bc_in(s)%filter_photo_pa(p) /= 2)then
                 write(iulog,*) 'Not all patches on the natveg column in the photosynthesis'
                 write(iulog,*) 'filter ran photosynthesis'
                 call endrun(msg=errMsg(sourcefile, __LINE__))
          else  
-	    fates(nc)%bc_in(s)%filter_photo_pa(ifp) = 3
+	    fates(nc)%bc_in(s)%filter_photo_pa(p) = 3
 	 end if
-	  
-    enddo
+       end do	  
+    end do
     !      do icp = 1,fn
     !         p = filterp(icp)
     !         c = veg_pp%column(p)
@@ -1670,8 +1673,8 @@ module ATSFatesInterfaceMod
               lat= fates(nc)%sites(s)%lat 
               lon= fates(nc)%sites(s)%lon
               coszen = shr_orb_cosz(jday,lat,lon)
-              fates(nc)%bc_in(s)%filter_vegzen_pa(1) = .true.
-              fates(nc)%bc_in(s)%coszen_pa(1)  = coszen
+              fates(nc)%bc_in(s)%filter_vegzen_pa(:) = .true.
+              fates(nc)%bc_in(s)%coszen_pa(:)  = coszen
               fates(nc)%bc_in(s)%albgr_dir_rb(:) = albgrd(:)
               fates(nc)%bc_in(s)%albgr_dif_rb(:) = albgri(:)
 
