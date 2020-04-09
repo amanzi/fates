@@ -166,6 +166,20 @@ module ATSFatesInterfaceMod
       REAL(C_DOUBLE) :: t_veg       ! vegetation temperature (Kelvin)
       REAL(C_DOUBLE) :: tgcm        ! air temperature at agcm reference height (Kelvin)
    end type PhotoSynthesisInput
+   
+   type, bind (C) :: TimeInput
+   ! -------------------------------------------------------------------------------------
+   integer (C_INT)  :: current_year    ! Current year
+   integer (C_INT)  :: current_month   ! month of year
+   integer (C_INT)  :: current_day     ! day of month
+   integer (C_INT)  :: current_tod     ! time of day (seconds past 0Z)
+   integer (C_INT)  :: current_date    ! YYYYMMDD
+   integer (C_INT)  :: reference_date  ! YYYYMMDD
+   REAL(C_DOUBLE)   :: model_day       ! elapsed days between current date and ref
+   integer (C_INT)  :: day_of_year     ! The integer day of the year
+   integer (C_INT)  :: days_per_year   ! The HLM controls time, some HLMs may 
+                                           ! include a leap
+   end type TimeInput
 
    type, public,  bind (C) :: bounds_type
       integer (C_INT) :: begg, endg       ! beginning and ending gridcell index
@@ -534,6 +548,10 @@ module ATSFatesInterfaceMod
       fates(nc)%bc_in(site_id)%dz_sisl(1:nlevsoil)    = dz(1:nlevsoil)
       fates(nc)%bc_in(site_id)%z_sisl(1:nlevsoil)     = z(1:nlevsoil)
       fates(nc)%bc_in(site_id)%dz_decomp_sisl(1:nlevdecomp) = dzsoi_decomp(1:nlevdecomp)
+      
+      do j=1,nlevsoil
+             fates(nc)%bc_in(site_id)%decomp_id(j) = 1
+      end do     
 
       !call init_history_io(bounds_proc)      
       ! Report Fates Parameters (debug flag in lower level routines)
@@ -546,7 +564,7 @@ module ATSFatesInterfaceMod
 
 
     subroutine dynamics_driv_per_site( &
-         nc, site_id, site_info, dtime,&
+         nc, site_id, site_info, time_input, dtime,&
          h2osoi_vol_col, temp_veg24_patch, prec24_patch, rh24_patch, wind24_patch) BIND(C)
     
 !       ! This wrapper is called daily from ATS_driver for each site
@@ -559,6 +577,7 @@ module ATSFatesInterfaceMod
       integer(C_INT),intent(in)                 :: nc   ! Clump
       integer(C_INT),intent(in)                 :: site_id   ! site index
       type(SiteInfo),intent(in)                 :: site_info
+      type(TimeInput),intent(in)                :: time_input
       real(C_DOUBLE), intent(in)                :: dtime
       real(C_DOUBLE), intent(in)                :: h2osoi_vol_col(site_info%nlevbed)
       real(C_DOUBLE), intent(in)                :: temp_veg24_patch(1)
@@ -606,17 +625,18 @@ module ATSFatesInterfaceMod
 !       jan01_curr_year = current_year*10000 + 100 + 1
 
 !       call get_ref_date(yr, mon, day, sec)
-!       reference_date = yr*10000 + mon*100 + day
+        reference_date = yr*10000 + mon*100 + day
 
 !       call timemgr_datediff(reference_date, sec, current_date, current_tod, model_day)
 
 !       call timemgr_datediff(jan01_curr_year,0,current_date,sec,day_of_year)
-      
-!       call SetFatesTime(current_year, current_month, &
-!                         current_day, current_tod, &
-!                         current_date, reference_date, &
-!                         model_day, floor(day_of_year), &
-!                         days_per_year, 1.0_r8/dble(days_per_year))
+       
+        day_of_year = time_input%day_of_year
+        call SetFatesTime(time_input%current_year, time_input%current_month, &
+                         time_input%current_day, time_input%current_tod, &
+                         time_input%current_date, time_input%reference_date, &
+                         time_input%model_day, floor(day_of_year), &
+                         time_input%days_per_year, 1.0_r8/dble(time_input%days_per_year))
 
       if (site_id.le.0.or.site_id.gt.fates(nc)%nsites) then
          write(iulog,*) "Incorrect site_id is provided", site_id
@@ -872,7 +892,19 @@ module ATSFatesInterfaceMod
           cpatch => fates(nc)%sites(s)%oldest_patch
           ccohort => cpatch%shortest
           do while(associated(ccohort))
-
+             if(isnan(ccohort%n))then
+               write(iulog,*) 'cohort n become nan'
+               write(iulog,*) 'Aborting'	     
+	       write(iulog,*)  ccohort%n, ccohort%gpp_acc
+	       call endrun(msg=errMsg(sourcefile, __LINE__)) 
+	     endif	  
+             if(isnan(ccohort%dbh))then
+               write(iulog,*) 'cohort dbh become nan'
+               write(iulog,*) 'Aborting'	     
+	       write(iulog,*)  ccohort%n, ccohort%gpp_acc
+	       call endrun(msg=errMsg(sourcefile, __LINE__)) 
+	     endif
+	     
              ft = ccohort%pft
              call sizetype_class_index(ccohort%dbh, ccohort%pft, ccohort%size_class, ccohort%size_by_pft_class)
 
@@ -1398,7 +1430,7 @@ module ATSFatesInterfaceMod
       real(C_DOUBLE), intent(in)            :: h2osoi_liqvol(array_size)   !liquid volumetric moisture, will be used for BeTR
       real(C_DOUBLE), intent(in)            :: eff_porosity(array_size)    !effective porosity = porosity - vol_ice 
       real(C_DOUBLE), intent(in)            :: watsat(array_size)          !volumetric soil water at saturation (porosity)
-      real(C_DOUBLE), intent(in)            :: soil_suc(array_size)        !soil suction
+      real(C_DOUBLE), intent(in)            :: soil_suc(array_size)        !soil suction,  negative, [mm]
       
                                                                         ! columns with exposed veg
       ! type(soilstate_type)   , intent(inout)         :: soilstate_inst
