@@ -383,7 +383,7 @@ module ATSFatesInterfaceMod
 
       nlevgrnd = 1
       soilwater_ipedof = 0
-      max_patch_per_site = 10
+      max_patch_per_site =site_ats(1)%%patchno
       
       call set_fates_ctrlparms('num_sw_bbands',ival=numrad)
       call set_fates_ctrlparms('vis_sw_index',ival=ivis)
