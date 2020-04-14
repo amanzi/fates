@@ -383,7 +383,7 @@ module ATSFatesInterfaceMod
 
       nlevgrnd = 1
       soilwater_ipedof = 0
-      max_patch_per_site =site_ats(1)%%patchno
+      max_patch_per_site =site_ats(1)%patchno
       
       call set_fates_ctrlparms('num_sw_bbands',ival=numrad)
       call set_fates_ctrlparms('vis_sw_index',ival=ivis)
@@ -874,7 +874,7 @@ module ATSFatesInterfaceMod
        type(ed_cohort_type),pointer :: ccohort
        real(r8) :: n_density   ! individual of cohort per m2.
        real(r8) :: n_perm2     ! individuals per m2 for the whole column
-       integer :: io_id
+       integer :: io_id, i_pa
 
        if (nsites.ne.fates(1)%nsites) then
           write(iulog,*) 'Number of sites provided by ATS does not match FATES'
@@ -890,7 +890,9 @@ module ATSFatesInterfaceMod
           
        do s=1,nsites
           cpatch => fates(nc)%sites(s)%oldest_patch
+          i_pa = 0
           do while(associated(cpatch))
+             i_pa = i_pa + 1
              ccohort => cpatch%shortest
              do while(associated(ccohort))
                 if(isnan(ccohort%n))then
@@ -920,6 +922,8 @@ module ATSFatesInterfaceMod
                    ! for quantities that are natively at column level, calculate plant 
                    ! density using whole area
                    n_perm2   = ccohort%n * AREA_INV
+                   ! write(100+i_pa,*) cpatch%area,cpatch%total_canopy_area,AREA_INV
+                   ! write(200+i_pa,*) n_density
 
                 else
                    n_density = 0.0_r8
@@ -942,10 +946,10 @@ module ATSFatesInterfaceMod
                 total_c  = alive_c + store_c + struct_c
 
                 io_id = (scls-1)*nsites + s
-                ats_biomass_array(io_id) = ats_biomass_array(io_id) +  &
-                     total_c * ccohort%n * AREA_INV
                 ! ats_biomass_array(io_id) = ats_biomass_array(io_id) +  &
-                !      total_c * n_density * g_per_kg
+                !      total_c * ccohort%n
+                ats_biomass_array(io_id) = ats_biomass_array(io_id) +  &
+                     total_c * n_density * g_per_kg
 
               end associate
               ccohort => ccohort%taller
