@@ -852,7 +852,7 @@ module ATSFatesInterfaceMod
        use EDtypesMod               , only : ed_patch_type
        use EDtypesMod               , only : AREA
        use EDtypesMod               , only : AREA_INV
-
+       use FatesConstantsMod        , only : g_per_kg
        use PRTGenericMod            , only : leaf_organ, fnrt_organ, sapw_organ
        use PRTGenericMod            , only : struct_organ, store_organ, repro_organ
        use PRTGenericMod            , only : all_carbon_elements
@@ -890,65 +890,72 @@ module ATSFatesInterfaceMod
           
        do s=1,nsites
           cpatch => fates(nc)%sites(s)%oldest_patch
-          ccohort => cpatch%shortest
-          do while(associated(ccohort))
-             if(isnan(ccohort%n))then
-               write(iulog,*) 'cohort n become nan'
-               write(iulog,*) 'Aborting'	     
-	       write(iulog,*)  ccohort%n, ccohort%gpp_acc
-	       call endrun(msg=errMsg(sourcefile, __LINE__)) 
-	     endif	  
-             if(isnan(ccohort%dbh))then
-               write(iulog,*) 'cohort dbh become nan'
-               write(iulog,*) 'Aborting'	     
-	       write(iulog,*)  ccohort%n, ccohort%gpp_acc
-	       call endrun(msg=errMsg(sourcefile, __LINE__)) 
-	     endif
-	     
-             ft = ccohort%pft
-             call sizetype_class_index(ccohort%dbh, ccohort%pft, ccohort%size_class, ccohort%size_by_pft_class)
+          do while(associated(cpatch))
+             ccohort => cpatch%shortest
+             do while(associated(ccohort))
+                if(isnan(ccohort%n))then
+                   write(iulog,*) 'cohort n become nan'
+                   write(iulog,*) 'Aborting'	     
+                   write(iulog,*)  ccohort%n, ccohort%gpp_acc
+                   call endrun(msg=errMsg(sourcefile, __LINE__)) 
+                endif
+                if(isnan(ccohort%dbh))then
+                   write(iulog,*) 'cohort dbh become nan'
+                   write(iulog,*) 'Aborting'	     
+                   write(iulog,*)  ccohort%n, ccohort%gpp_acc
+                   call endrun(msg=errMsg(sourcefile, __LINE__)) 
+                endif
 
-           
-             if ((cpatch%area .gt. 0._r8) .and. (cpatch%total_canopy_area .gt. 0._r8)) then
-                  
-                  ! for quantities that are at the CLM patch level, because of the way 
-                  ! that CLM patches are weighted for radiative purposes this # density needs 
-                  ! to be over either ED patch canopy area or ED patch total area, whichever is less
-                  n_density = ccohort%n/min(cpatch%area,cpatch%total_canopy_area) 
-                  
-                  ! for quantities that are natively at column level, calculate plant 
-                  ! density using whole area
-                  n_perm2   = ccohort%n * AREA_INV
-                  
-               else
-                  n_density = 0.0_r8
-                  n_perm2   = 0.0_r8
-               endif
-             
-             associate(scpf => ccohort%size_by_pft_class, &
-                  scls => ccohort%size_class)
+                ft = ccohort%pft
+                call sizetype_class_index(ccohort%dbh, ccohort%pft, ccohort%size_class, ccohort%size_by_pft_class)
 
-                   ! Mass pools [kgC]
-                   sapw_c   = ccohort%prt%GetState(sapw_organ, all_carbon_elements)
-                   struct_c = ccohort%prt%GetState(struct_organ, all_carbon_elements)
-                   leaf_c   = ccohort%prt%GetState(leaf_organ, all_carbon_elements)
-                   fnrt_c   = ccohort%prt%GetState(fnrt_organ, all_carbon_elements)
-                   store_c  = ccohort%prt%GetState(store_organ, all_carbon_elements)
- 
-                   alive_c  = leaf_c + fnrt_c + sapw_c
-                   total_c  = alive_c + store_c + struct_c
 
-                   !write(*,*) s, scls, ccohort%n, total_c
-                   io_id = (scls-1)*nsites + s
-                   ats_biomass_array(io_id) = ats_biomass_array(io_id) +  &
-                                total_c * ccohort%n * AREA_INV
-                
-             end associate
-             ccohort => ccohort%taller
-          end do
+                if ((cpatch%area .gt. 0._r8) .and. (cpatch%total_canopy_area .gt. 0._r8)) then
+
+                   ! for quantities that are at the CLM patch level, because of the way 
+                   ! that CLM patches are weighted for radiative purposes this # density needs 
+                   ! to be over either ED patch canopy area or ED patch total area, whichever is less
+                   n_density = ccohort%n/min(cpatch%area,cpatch%total_canopy_area) 
+
+                   ! for quantities that are natively at column level, calculate plant 
+                   ! density using whole area
+                   n_perm2   = ccohort%n * AREA_INV
+
+                else
+                   n_density = 0.0_r8
+                   n_perm2   = 0.0_r8
+                endif
+
+
+
+                associate(scpf => ccohort%size_by_pft_class, &
+                     scls => ccohort%size_class)
+
+                  ! Mass pools [kgC]
+                sapw_c   = ccohort%prt%GetState(sapw_organ, all_carbon_elements)
+                struct_c = ccohort%prt%GetState(struct_organ, all_carbon_elements)
+                leaf_c   = ccohort%prt%GetState(leaf_organ, all_carbon_elements)
+                fnrt_c   = ccohort%prt%GetState(fnrt_organ, all_carbon_elements)
+                store_c  = ccohort%prt%GetState(store_organ, all_carbon_elements)
+
+                alive_c  = leaf_c + fnrt_c + sapw_c
+                total_c  = alive_c + store_c + struct_c
+
+                io_id = (scls-1)*nsites + s
+                ats_biomass_array(io_id) = ats_biomass_array(io_id) +  &
+                     total_c * ccohort%n * AREA_INV
+                ! ats_biomass_array(io_id) = ats_biomass_array(io_id) +  &
+                !      total_c * n_density * g_per_kg
+
+              end associate
+              ccohort => ccohort%taller
+           end do !cohort loop
+           cpatch => cpatch%younger
+        end do !patch loop
+
 
        end do
-
+       
      end subroutine calculate_biomass
 
      
