@@ -555,8 +555,8 @@ module ATSFatesInterfaceMod
 
       !call init_history_io(bounds_proc)      
       ! Report Fates Parameters (debug flag in lower level routines)
-      masterproc = .true.  !cx: need to be passed from the function
-      call FatesReportParameters(masterproc)
+      ! masterproc = .true.  !cx: need to be passed from the function
+      ! call FatesReportParameters(masterproc)
       
       !write(*, *) "Exit Init_soil_depth fates"
       return
@@ -917,7 +917,8 @@ module ATSFatesInterfaceMod
                    ! for quantities that are at the CLM patch level, because of the way 
                    ! that CLM patches are weighted for radiative purposes this # density needs 
                    ! to be over either ED patch canopy area or ED patch total area, whichever is less
-                   n_density = ccohort%n/min(cpatch%area,cpatch%total_canopy_area) 
+                   !n_density = ccohort%n/min(cpatch%area,cpatch%total_canopy_area) 
+                   n_density = ccohort%n/cpatch%area 
 
                    ! for quantities that are natively at column level, calculate plant 
                    ! density using whole area
@@ -946,10 +947,10 @@ module ATSFatesInterfaceMod
                 total_c  = alive_c + store_c + struct_c
 
                 io_id = (scls-1)*nsites + s
-                ! ats_biomass_array(io_id) = ats_biomass_array(io_id) +  &
-                !      total_c * ccohort%n
                 ats_biomass_array(io_id) = ats_biomass_array(io_id) +  &
-                     total_c * n_density * g_per_kg
+                      total_c * ccohort%n * AREA_INV * g_per_kg
+                !ats_biomass_array(io_id) = ats_biomass_array(io_id) +  &
+                !     total_c * n_density * g_per_kg
 
               end associate
               ccohort => ccohort%taller
