@@ -1418,7 +1418,7 @@ module ATSFatesInterfaceMod
 
 !    ! ====================================================================================
    
-    subroutine wrap_btran(nc, array_size, t_soil, h2osoi_liqvol, eff_porosity, watsat, soil_suc) BIND(C)
+    subroutine wrap_btran(nc, array_size, t_soil, h2osoi_liqvol, eff_porosity, watsat, soil_suc, salinity) BIND(C)
       ! ,soilstate_inst, waterstate_inst, &
       !                    temperature_inst, energyflux_inst,  &
       !                    soil_water_retention_curve)
@@ -1443,6 +1443,7 @@ module ATSFatesInterfaceMod
       real(C_DOUBLE), intent(in)            :: eff_porosity(array_size)    !effective porosity = porosity - vol_ice 
       real(C_DOUBLE), intent(in)            :: watsat(array_size)          !volumetric soil water at saturation (porosity)
       real(C_DOUBLE), intent(in)            :: soil_suc(array_size)        !soil suction,  negative, [mm]
+      real(C_DOUBLE), intent(in)            :: salinity(array_size)        !salt concentration [ppt]
       
                                                                         ! columns with exposed veg
       ! type(soilstate_type)   , intent(inout)         :: soilstate_inst
@@ -1495,6 +1496,7 @@ module ATSFatesInterfaceMod
             fates(nc)%bc_in(s)%eff_porosity_sl(j)  = eff_porosity(k)
             fates(nc)%bc_in(s)%watsat_sl(j)        = watsat(k)
             fates(nc)%bc_in(s)%smp_sl(j)           = soil_suc(k)
+            fates(nc)%bc_in(s)%salinity_sl(j)      = salinity(k)
          end do
 
       end do
