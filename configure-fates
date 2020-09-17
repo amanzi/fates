@@ -13,5 +13,6 @@ cmake \
       -D CMAKE_INSTALL_PREFIX=${TPLS_DIR} \
       -D NETCDF_INCLUDE_DIR=${TPLS_DIR}/include/ \
       -D PIO_INCLUDE_DIR=${TPLS_DIR}/include/ \
+      -D CMAKE_INSTALL_PREFIX=${TPLS_DIR}\
       ${ATSFATES_DIR}
        

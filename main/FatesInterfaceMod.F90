@@ -1008,10 +1008,9 @@ contains
       ! are written only once at the beginning
       ! so THIS ROUTINE SHOULD NOT BE CALLED AFTER
       ! INITIALIZATION
-      if(do_fates_salinity)then
-           this%bc_in(s)%salinity_sl(:)     = bgc_soil_salinity
-      endif
-
+      ! if(do_fates_salinity)then
+      !      this%bc_in(s)%salinity_sl(:)     = bgc_soil_salinity
+      ! endif
     end subroutine set_bcs
 
 

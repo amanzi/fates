@@ -71,6 +71,7 @@ include_directories(${SHARED_SOURCE_DIR}
                     ../biogeophys/FatesPlantHydraulicsMod.F90
                     ../biogeophys/EDSurfaceAlbedoMod.F90
                     ../biogeophys/FatesPlantRespPhotosynthMod.F90
+                    ../biogeophys/FatesBstressMod.F90
                     ../interface/atsfates_interfaceMod.F90
                     ../interface/atsfates_paraminterfaceMod.F90
                     )

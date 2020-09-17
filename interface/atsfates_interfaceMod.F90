@@ -948,7 +948,8 @@ module ATSFatesInterfaceMod
 
                 io_id = (scls-1)*nsites + s
                 ats_biomass_array(io_id) = ats_biomass_array(io_id) +  &
-                      total_c * ccohort%n * AREA_INV * g_per_kg
+                     total_c * ccohort%n * AREA_INV * g_per_kg
+                write(*,*) "ccohort%n", ccohort%n
                 !ats_biomass_array(io_id) = ats_biomass_array(io_id) +  &
                 !     total_c * n_density * g_per_kg
 
@@ -1432,7 +1433,8 @@ module ATSFatesInterfaceMod
       ! ---------------------------------------------------------------------------------
 
       ! use SoilWaterRetentionCurveMod, only : soil_water_retention_curve_type
-
+      use EDTypesMod          , only : do_fates_salinity
+      
       implicit none
       
       ! Arguments
@@ -1496,7 +1498,9 @@ module ATSFatesInterfaceMod
             fates(nc)%bc_in(s)%eff_porosity_sl(j)  = eff_porosity(k)
             fates(nc)%bc_in(s)%watsat_sl(j)        = watsat(k)
             fates(nc)%bc_in(s)%smp_sl(j)           = soil_suc(k)
-            fates(nc)%bc_in(s)%salinity_sl(j)      = salinity(k)
+            if (do_fates_salinity) then
+               fates(nc)%bc_in(s)%salinity_sl(j)      = salinity(k)
+            end if
          end do
 
       end do
