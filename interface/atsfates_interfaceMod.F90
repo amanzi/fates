@@ -132,6 +132,7 @@ module ATSFatesInterfaceMod
    use FatesPlantHydraulicsMod, only : InitHydrSites
    use FatesPlantHydraulicsMod, only : UpdateH2OVeg
    use FatesInterfaceMod      , only : bc_in_type, bc_out_type
+   use FatesBstressMod        , only : btran_sal_stress_fates
 
    implicit none
    
@@ -1517,7 +1518,14 @@ module ATSFatesInterfaceMod
            fates(nc)%bc_in,  &
            fates(nc)%bc_out)
 
-
+	  !----------------------------------------------------------------------------------
+	  !Calculate the impact of soil salinity impact on btran
+	  ! ---------------------------------------------------------------------------------
+     if(do_fates_salinity)then
+         call btran_sal_stress_fates(fates(nc)%nsites, &
+                    fates(nc)%sites,  &
+                    fates(nc)%bc_in)
+     endif
    end subroutine wrap_btran
 
 !    ! ====================================================================================
