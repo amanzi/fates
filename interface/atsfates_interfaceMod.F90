@@ -950,7 +950,6 @@ module ATSFatesInterfaceMod
                 io_id = (scls-1)*nsites + s
                 ats_biomass_array(io_id) = ats_biomass_array(io_id) +  &
                      total_c * ccohort%n * AREA_INV * g_per_kg
-                write(*,*) "ccohort%n", ccohort%n
                 !ats_biomass_array(io_id) = ats_biomass_array(io_id) +  &
                 !     total_c * n_density * g_per_kg
 
