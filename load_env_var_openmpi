@@ -7,6 +7,5 @@ setenv TPLS_DIR /turquoise/usr/projects/ascem/amanzi_ats_fates/tpls/TPLs-openmpi
 setenv MPIHOME /usr/projects/hpcsoft/toss3/grizzly/openmpi/2.1.2-intel-19.0.4/
 
 #! USER-DEFINED
-setenv ATSFATES_DIR /turquoise/usr/projects/ascem/amanzi_ats_fates/repos/fates-ats
-setenv AMANZI_SRC /turquoise/usr/projects/ascem/amanzi_ats_fates/repos/amanzi_ats_fates
-setenv AMANZI_INSTALL /turquoise/usr/projects/ascem/amanzi_ats_fates/install
+setenv ATSFATES_DIR /lustre/scratch4/turquoise/.mdt5/dasvyat/Rutuja/fates-ats
+setenv ATSFATES_INSTALL_DIR /lustre/scratch4/turquoise/.mdt5/dasvyat/Rutuja/fates-ats/install

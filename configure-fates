@@ -10,9 +10,8 @@ cmake \
       -D CMAKE_C_COMPILER=${CC} \
       -D CMAKE_CXX_COMPILER=${CXX} \
       -D CMAKE_BUILD_TYPE=Debug\
-      -D CMAKE_INSTALL_PREFIX=${TPLS_DIR} \
       -D NETCDF_INCLUDE_DIR=${TPLS_DIR}/include/ \
       -D PIO_INCLUDE_DIR=${TPLS_DIR}/include/ \
-      -D CMAKE_INSTALL_PREFIX=${TPLS_DIR}\
+      -D CMAKE_INSTALL_PREFIX=${ATSFATES_INSTALL_DIR}\
       ${ATSFATES_DIR}
        
