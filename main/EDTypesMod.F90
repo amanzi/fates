@@ -86,7 +86,7 @@ module EDTypesMod
   ! Flag to turn on/off salinity effects on the effective "btran"
   ! btran stress function.
 
-  logical, parameter, public :: do_fates_salinity = .true.
+  logical, parameter, public :: do_fates_salinity = .false.
 
 
   ! This is the community level amount of spread expected in nearly-bare-ground

@@ -3,16 +3,10 @@
 setenv FC /usr/projects/hpcsoft/toss3/grizzly/openmpi/2.1.2-intel-19.0.4/bin/mpif90
 setenv CC /usr/projects/hpcsoft/toss3/grizzly/openmpi/2.1.2-intel-19.0.4/bin/mpicc
 setenv CXX /usr/projects/hpcsoft/toss3/grizzly/openmpi/2.1.2-intel-19.0.4/bin/mpicxx
-setenv TPLS_DIR /lustre/scratch3/turquoise/dasvyat/Amanzi/tpls/TPLs-openmpi_2.1.2-intel2019-0.97.1-static/
+setenv TPLS_DIR /turquoise/usr/projects/ascem/amanzi_ats_fates/tpls/TPLs-openmpi_2.1.2-intel2019-0.97.8-static-new/
 setenv MPIHOME /usr/projects/hpcsoft/toss3/grizzly/openmpi/2.1.2-intel-19.0.4/
 
 #! USER-DEFINED
-setenv ATSFATES_DIR /turquoise/users/dasvyat/Coastal/ats-fates-new-copy
-setenv AMANZI_SRC /turquoise/users/dasvyat/Amanzi/amanzi_ats_fates
-setenv AMANZI_INSTALL /lustre/scratch3/turquoise/dasvyat/Amanzi/install-amanzi/
-
-# if (! $?LD_LIBRARY_PATH) then       
-#     setenv LD_LIBRARY_PATH ${TPLS_LIBS}
-# else
-#     setenv LD_LIBRARY_PATH ${LD_LIBRARY_PATH}:${TPLS_LIBS}
-# endif
+setenv ATSFATES_DIR /turquoise/usr/projects/ascem/amanzi_ats_fates/repos/fates-ats
+setenv AMANZI_SRC /turquoise/usr/projects/ascem/amanzi_ats_fates/repos/amanzi_ats_fates
+setenv AMANZI_INSTALL /turquoise/usr/projects/ascem/amanzi_ats_fates/install
