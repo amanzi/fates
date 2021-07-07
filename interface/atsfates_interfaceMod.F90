@@ -502,7 +502,7 @@ module ATSFatesInterfaceMod
 
       nlevel_class = nlevsclass
 
-    end subroutine get_nlevsclass
+    end subroutine get_nlevsclass/btran_ed
 
 
     subroutine init_soil_depths(nc, site_id, site_info, zi, dz, z, dzsoi_decomp) BIND(C)
@@ -834,21 +834,21 @@ module ATSFatesInterfaceMod
 
 
 
-     subroutine calculate_biomass(nc, ats_biomass_array, nsites, num_scls) BIND(C)
+     subroutine calculate_biomass(nc, ats_biomass_pa_array, ats_bstore_pa_array, nsites, num_scls) BIND(C)
 
-       use FatesInterfaceMod, only : nlevsclass
-       use EDtypesMod          , only : nfsc
-       use FatesLitterMod      , only : ncwd
-       use EDtypesMod          , only : ican_upper
-       use EDtypesMod          , only : ican_ustory
+       use FatesInterfaceMod        , only : nlevsclass
+       use EDtypesMod               , only : nfsc
+       use FatesLitterMod           , only : ncwd
+       use EDtypesMod               , only : ican_upper
+       use EDtypesMod               , only : ican_ustory
        use FatesSizeAgeTypeIndicesMod, only : get_sizeage_class_index
        use FatesSizeAgeTypeIndicesMod, only : get_sizeagepft_class_index
        use FatesSizeAgeTypeIndicesMod, only : get_agepft_class_index
        use FatesSizeAgeTypeIndicesMod, only : get_age_class_index
        use FatesSizeAgeTypeIndicesMod, only : get_height_index
        use FatesSizeAgeTypeIndicesMod, only : sizetype_class_index
-       use EDTypesMod        , only : nlevleaf
-       use EDParamsMod,           only : ED_val_history_height_bin_edges
+       use EDTypesMod               , only : nlevleaf
+       use EDParamsMod              , only : ED_val_history_height_bin_edges
        use EDtypesMod               , only : ed_cohort_type
        use EDtypesMod               , only : ed_patch_type
        use EDtypesMod               , only : AREA
@@ -861,9 +861,15 @@ module ATSFatesInterfaceMod
        implicit none
 
        integer(C_INT),intent(in)                   :: nc   ! Clump
-       real (C_DOUBLE),dimension(*), intent(inout) :: ats_biomass_array
        integer (C_INT), value :: nsites
        integer (C_INT), value :: num_scls
+
+       ! Patch variables
+       ! ELM-FATES vname='ED_biomass', long='Total biomass', units='gC m-2', vtype=patch_r8, index = ih_btotal_pa
+       real (C_DOUBLE),dimension(*), intent(inout) :: ats_biomass_pa_array
+
+       ! ELM-FATES vname='ED_bstore', long='Storage biomass', units='gC m-2', vtype=patch_r8, index = ih_bstore_pa
+       real (C_DOUBLE),dimension(*), intent(inout) :: ats_bstore_pa_array
 
 
        integer :: s, scpf, scls
@@ -875,7 +881,7 @@ module ATSFatesInterfaceMod
        type(ed_cohort_type),pointer :: ccohort
        real(r8) :: n_density   ! individual of cohort per m2.
        real(r8) :: n_perm2     ! individuals per m2 for the whole column
-       integer :: io_id, i_pa
+       integer :: io_id, i_pa ! io_id is input/output array index for site, i_pa is index for patch
 
        if (nsites.ne.fates(1)%nsites) then
           write(iulog,*) 'Number of sites provided by ATS does not match FATES'
@@ -889,11 +895,14 @@ module ATSFatesInterfaceMod
           call endrun(msg=errMsg(sourcefile, __LINE__))
        end if
           
+       i_pa= 0
        do s=1,nsites
+          io_id = 0
           cpatch => fates(nc)%sites(s)%oldest_patch
-          i_pa = 0
           do while(associated(cpatch))
              i_pa = i_pa + 1
+             ats_biomass_array(i_pa) = 0.0_r8
+             ats_bstore_array(i_pa) = 0.0_r8
              ccohort => cpatch%shortest
              do while(associated(ccohort))
                 if(isnan(ccohort%n))then
@@ -913,13 +922,13 @@ module ATSFatesInterfaceMod
                 call sizetype_class_index(ccohort%dbh, ccohort%pft, ccohort%size_class, ccohort%size_by_pft_class)
 
 
-                if ((cpatch%area .gt. 0._r8) .and. (cpatch%total_canopy_area .gt. 0._r8)) then
+                if ((cpatch%area .gt. 0.0_r8) .and. (cpatch%total_canopy_area .gt. 0.0_r8)) then
 
                    ! for quantities that are at the CLM patch level, because of the way 
                    ! that CLM patches are weighted for radiative purposes this # density needs 
                    ! to be over either ED patch canopy area or ED patch total area, whichever is less
-                   !n_density = ccohort%n/min(cpatch%area,cpatch%total_canopy_area) 
-                   n_density = ccohort%n/cpatch%area 
+                   n_density = ccohort%n/min(cpatch%area,cpatch%total_canopy_area) 
+                   !n_density = ccohort%n/cpatch%area 
 
                    ! for quantities that are natively at column level, calculate plant 
                    ! density using whole area
@@ -931,8 +940,6 @@ module ATSFatesInterfaceMod
                    n_density = 0.0_r8
                    n_perm2   = 0.0_r8
                 endif
-
-
 
                 associate(scpf => ccohort%size_by_pft_class, &
                      scls => ccohort%size_class)
@@ -947,11 +954,15 @@ module ATSFatesInterfaceMod
                 alive_c  = leaf_c + fnrt_c + sapw_c
                 total_c  = alive_c + store_c + struct_c
 
-                io_id = (scls-1)*nsites + s
-                ats_biomass_array(io_id) = ats_biomass_array(io_id) +  &
-                     total_c * ccohort%n * AREA_INV * g_per_kg
+                !io_id = (scls-1)*nsites + s
                 !ats_biomass_array(io_id) = ats_biomass_array(io_id) +  &
-                !     total_c * n_density * g_per_kg
+                !     total_c * ccohort%n * AREA_INV * g_per_kg
+
+                ats_biomass_pa_array(i_pa) = ats_biomass_pa_array(i_pa) +  &
+                     total_c * n_density * g_per_kg
+
+                ats_bstore_pa_array(i_pa) = ats_bstore_pa_array(i_pa) +  &
+                     store_c * n_density * g_per_kg
 
               end associate
               ccohort => ccohort%taller
@@ -959,12 +970,406 @@ module ATSFatesInterfaceMod
            cpatch => cpatch%younger
         end do !patch loop
 
-
-       end do
+       end do ! site loop
        
      end subroutine calculate_biomass
 
-     
+
+     ! Calculate and store GPP. ats_gpp_array needs to be defined in ATS.
+
+     subroutine calculate_gpp(nc, ats_gpp_pa_array, ats_gpp_si_array, nsites, num_scls, dt_tstep) BIND(C)
+
+       use FatesInterfaceMod        , only : nlevsclass
+       use EDtypesMod               , only : nfsc
+       use FatesLitterMod           , only : ncwd
+       use EDtypesMod               , only : ican_upper
+       use EDtypesMod               , only : ican_ustory
+       use FatesSizeAgeTypeIndicesMod, only : get_sizeage_class_index
+       use FatesSizeAgeTypeIndicesMod, only : get_sizeagepft_class_index
+       use FatesSizeAgeTypeIndicesMod, only : get_agepft_class_index
+       use FatesSizeAgeTypeIndicesMod, only : get_age_class_index
+       use FatesSizeAgeTypeIndicesMod, only : get_height_index
+       use FatesSizeAgeTypeIndicesMod, only : sizetype_class_index
+       use EDTypesMod               , only : nlevleaf
+       use EDParamsMod              , only : ED_val_history_height_bin_edges
+       use EDtypesMod               , only : ed_cohort_type
+       use EDtypesMod               , only : ed_patch_type
+       use EDtypesMod               , only : AREA
+       use EDtypesMod               , only : AREA_INV
+       use FatesConstantsMod        , only : g_per_kg
+       use PRTGenericMod            , only : leaf_organ, fnrt_organ, sapw_organ
+       use PRTGenericMod            , only : struct_organ, store_organ, repro_organ
+       use PRTGenericMod            , only : all_carbon_elements
+       
+       implicit none
+
+       integer(C_INT),intent(in) :: nc   ! Clump ! Is clump the same as cohorts? And so is nc the number of cohorts?
+       integer (C_INT), value :: nsites
+       integer (C_INT), value :: num_scls
+       real(r8), intent(in) :: dt_tstep ! (s)
+
+       !ELM-FATES name='GPP', units='gC/m^2/s', long='gross primary production', vtype=patch_r8, index = ih_gpp_pa
+       real (C_DOUBLE),dimension(*), intent(inout) :: ats_gpp_pa_array ! patch level array. Maximum patches could be 200 pooled across sites
+       
+
+       real (C_DOUBLE),dimension(*), intent(inout) :: ats_gpp_si_array ! site level array. Units: gC/m^2/s
+
+
+       ! s is site, scpf is size and pft, scls is size class
+
+       integer :: s, scpf, scls
+       real(r8) :: sapw_c, struct_c, leaf_c
+       real(r8) :: fnrt_c, store_c
+       real(r8) :: total_c, alive_c
+       integer  :: ft               ! functional type index
+       type(ed_patch_type),pointer  :: cpatch
+       type(ed_cohort_type),pointer :: ccohort
+       real(r8) :: n_density   ! individual of cohort per m2.
+       real(r8) :: n_perm2     ! individuals per m2 for the whole column
+       integer :: i_pa
+       real(r8) :: per_dt_tstep          ! Time step in frequency units (/s)
+
+       if (nsites.ne.fates(1)%nsites) then
+          write(iulog,*) 'Number of sites provided by ATS does not match FATES'
+          write(iulog,*) 'Aborting'
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       end if
+
+       if (num_scls.ne.nlevsclass) then
+          write(iulog,*) 'Number of size classes provided by ATS does not match FATES'
+          write(iulog,*) 'Aborting'
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       end if
+       
+       per_dt_tstep = 1.0_r8/dt_tstep
+
+       i_pa = 0 ! index for patch
+       do s=1,nsites
+          ats_gpp_si_array(s) = 0.0_r8
+          cpatch => fates(nc)%sites(s)%oldest_patch ! starts from oldest patch
+          do while(associated(cpatch)) ! do if the oldest patch exist
+             i_pa = i_pa + 1           
+             ats_gpp_pa_array(i_pa) = 0.0_r8
+             ccohort => cpatch%shortest
+             do while(associated(ccohort))
+                if(isnan(ccohort%n))then
+                   write(iulog,*) 'cohort n become nan'
+                   write(iulog,*) 'Aborting'      
+                   write(iulog,*)  ccohort%n, ccohort%gpp_acc
+                   call endrun(msg=errMsg(sourcefile, __LINE__)) 
+                endif
+                if(isnan(ccohort%dbh))then
+                   write(iulog,*) 'cohort dbh become nan'
+                   write(iulog,*) 'Aborting'      
+                   write(iulog,*)  ccohort%n, ccohort%gpp_acc
+                   call endrun(msg=errMsg(sourcefile, __LINE__)) 
+                endif
+
+                ft = ccohort%pft
+                call sizetype_class_index(ccohort%dbh, ccohort%pft, ccohort%size_class, ccohort%size_by_pft_class)
+
+
+                if ((cpatch%area .gt. 0._r8) .and. (cpatch%total_canopy_area .gt. 0._r8)) then
+
+                   ! for quantities that are at the CLM patch level, because of the way 
+                   ! that CLM patches are weighted for radiative purposes this # density needs 
+                   ! to be over either ED patch canopy area or ED patch total area, whichever is less
+                   n_density = ccohort%n/min(cpatch%area,cpatch%total_canopy_area) 
+                   !n_density = ccohort%n/cpatch%area 
+
+                   ! for quantities that are natively at column level, calculate plant 
+                   ! density using whole area
+                   n_perm2   = ccohort%n * AREA_INV
+                   ! write(100+i_pa,*) cpatch%area,cpatch%total_canopy_area,AREA_INV
+                   ! write(200+i_pa,*) n_density
+
+                else
+                   n_density = 0.0_r8
+                   n_perm2   = 0.0_r8
+                endif
+
+                if ( .not. ccohort%isnew ) then
+
+                     ! Calculate index for the scpf class
+                     associate( scpf => ccohort%size_by_pft_class, &
+                                scls => ccohort%size_class ) ! Relabeling to a shorter variable name
+
+                     ! scale up cohort fluxes to their patches
+                     ats_gpp_pa_array(i_pa) = ats_gpp_pa_array(i_pa) + & ! i_pa is the index for the patch
+                           ccohort%gpp_tstep * g_per_kg * n_density * per_dt_tstep
+
+                     end associate
+
+                endif
+
+                ccohort => ccohort%taller
+           end do !cohort loop
+
+           ats_gpp_si_array(s) = ats_gpp_si_array(s) + ats_gpp_pa_array(i_pa)
+
+           cpatch => cpatch%younger
+        end do !patch loop
+
+       end do ! site loop
+       
+     end subroutine calculate_gpp 
+
+
+     subroutine calculate_mortality(nc, nsites, num_scls, num_scpf, ats_mortality_si_pft_array) BIND(C)
+
+       use FatesInterfaceMod        , only : numpft_fates     => numpft
+       use FatesInterfaceMod        , only : nlevsclasss
+       use EDtypesMod               , only : nfsc
+       use FatesLitterMod           , only : ncwd
+       use EDtypesMod               , only : ican_upper
+       use EDtypesMod               , only : ican_ustory
+       use FatesSizeAgeTypeIndicesMod, only : get_sizeage_class_index
+       use FatesSizeAgeTypeIndicesMod, only : get_sizeagepft_class_index
+       use FatesSizeAgeTypeIndicesMod, only : get_agepft_class_index
+       use FatesSizeAgeTypeIndicesMod, only : get_age_class_index
+       use FatesSizeAgeTypeIndicesMod, only : get_height_index
+       use FatesSizeAgeTypeIndicesMod, only : sizetype_class_index
+       use EDTypesMod               , only : nlevleaf
+       use EDParamsMod              , only : ED_val_history_height_bin_edges
+       use EDtypesMod               , only : ed_cohort_type
+       use EDtypesMod               , only : ed_patch_type
+       use EDtypesMod               , only : AREA
+       use EDtypesMod               , only : AREA_INV
+       use FatesConstantsMod        , only : g_per_kg
+       use PRTGenericMod            , only : leaf_organ, fnrt_organ, sapw_organ
+       use PRTGenericMod            , only : struct_organ, store_organ, repro_organ
+       use PRTGenericMod            , only : all_carbon_elements
+       
+       implicit none
+
+       integer(C_INT), intent(in):: nc   ! Clump
+       integer (C_INT), value :: nsites
+       integer (C_INT), value :: num_scls
+       integer (C_INT), value :: num_scpf
+       !integer (C_INT), value :: numpft ! is this required OR Is it taken from FATES as the assignment indicates in the first line?       
+
+       ! Patch variable  
+       ! ELM-FATES equivalent variable: vname = MORTALITY. long = Rate of total mortality by PFT. vtype=site_pft_r8, index = ih_mortality_si_pft
+       real (C_DOUBLE), dimension(*), intent(inout) :: ats_mortality_si_pft_array ! Units: indiv/ha/yr. 
+
+       integer :: s, scpf, scls
+       real(r8) :: sapw_c, struct_c, leaf_c
+       real(r8) :: fnrt_c, store_c
+       real(r8) :: total_c, alive_c
+       integer  :: ft               ! functional type index
+       type(ed_patch_type),pointer  :: cpatch
+       type(ed_cohort_type),pointer :: ccohort
+       real(r8) :: n_density   ! individual of cohort per m2.
+       real(r8) :: n_perm2     ! individuals per m2 for the whole column
+       integer :: io_si, i_pft ! io_si is input/output array index for site, i_pa is index for pft
+       integer :: io_pa, i_scpf, i_scls ! io_pa is input/output array index for patch
+
+       ! arrays to hold sub-mortalities
+       real(r8), dimension(:,:), allocatable :: ats_m1_si_scpf_array ! Units: indiv/ha/yr. 'background mortality by pft/size', index = ih_m1_si_scpf 
+       real(r8), dimension(:,:), allocatable :: ats_m1_si_scpf_array ! Units: indiv/ha/yr. 'hydraulic mortality by pft/size', index = ih_m2_si_scpf 
+       real(r8), dimension(:,:), allocatable :: ats_m1_si_scpf_array ! Units: indiv/ha/yr. 'carbon starvation mortality by pft/size', index = ih_m3_si_scpf 
+       real(r8), dimension(:,:), allocatable :: ats_m1_si_scpf_array ! Units: indiv/ha/yr. 'impact mortality by pft/size', index = ih_m4_si_scpf 
+       real(r8), dimension(:,:), allocatable :: ats_m1_si_scpf_array ! Units: indiv/ha/yr. 'fire mortality by pft/size', index = ih_m5_si_scpf 
+       real(r8), dimension(:,:), allocatable :: ats_m1_si_scpf_array ! Units: indiv/ha/yr. 'termination mortality by pft/size', index = ih_m6_si_scpf 
+       real(r8), dimension(:,:), allocatable :: ats_m1_si_scpf_array ! Units: indiv/ha/yr. 'logging mortality by pft/size', index = ih_m7_si_scpf 
+       real(r8), dimension(:,:), allocatable :: ats_m1_si_scpf_array ! Units: indiv/ha/yr. 'freezing mortality by pft/size', index = ih_m8_si_scpf 
+
+       allocate(ats_m1_si_scpf_array(nsites,scpf))
+       allocate(ats_m2_si_scpf_array(nsites,scpf))
+       allocate(ats_m3_si_scpf_array(nsites,scpf))
+       allocate(ats_m4_si_scpf_array(nsites,scpf))
+       allocate(ats_m5_si_scpf_array(nsites,scpf))
+       allocate(ats_m6_si_scpf_array(nsites,scpf))
+       allocate(ats_m7_si_scpf_array(nsites,scpf))
+       allocate(ats_m8_si_scpf_array(nsites,scpf))
+
+       if (nsites.ne.fates(1)%nsites) then
+          write(iulog,*) 'Number of sites provided by ATS does not match FATES'
+          write(iulog,*) 'Aborting'
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       end if
+
+       if (num_scls.ne.nlevsclass) then
+          write(iulog,*) 'Number of size classes provided by ATS does not match FATES'
+          write(iulog,*) 'Aborting'
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       end if
+
+      io_si = 0 ! index for site
+      io_pa = 0 ! index for patch
+      do s = 1,nsites
+         
+         io_si  = io_si + 1 
+
+         cpatch => sites(s)%oldest_patch
+         do while(associated(cpatch))
+            
+            io_pa = io_pa + 1  
+
+            ccohort => cpatch%shortest
+            do while(associated(ccohort))
+               ft = ccohort%pft
+
+               ! Site by Size-Class x PFT (SCPF) 
+               ! ------------------------------------------------------------------------
+
+               ! Flux Variables (cohorts must had experienced a day before any of these values
+               ! have any meaning, otherwise they are just inialization values
+               if( .not.(ccohort%isnew) ) then
+
+ 
+                  associate( scpf => ccohort%size_by_pft_class, &
+                             scls => ccohort%size_class )
+
+                    ats_m1_si_scpf_array(io_si,scpf) = ats_m1_si_scpf_array(io_si,scpf) + ccohort%bmort*ccohort%n
+                    ats_m2_si_scpf_array(io_si,scpf) = ats_m2_si_scpf_array(io_si,scpf) + ccohort%hmort*ccohort%n
+                    ats_m3_si_scpf_array(io_si,scpf) = ats_m3_si_scpf_array(io_si,scpf) + ccohort%cmort*ccohort%n
+                    ats_m7_si_scpf_array(io_si,scpf) = ats_m7_si_scpf_array(io_si,scpf) + &
+                         (ccohort%lmort_direct+ccohort%lmort_collateral+ccohort%lmort_infra) * ccohort%n
+                    ats_m8_si_scpf_array(io_si,scpf) = ats_m8_si_scpf_array(io_si,scpf) + ccohort%frmort*ccohort%n
+
+                  end associate
+
+               ccohort => ccohort%taller
+            enddo ! cohort loop                                      
+
+            cpatch => cpatch%younger
+         end do !patch loop
+
+         ! note there are various ways of reporting the total mortality, so pass to these as well
+         ! pass the cohort termination mortality as a flux to the history, and then reset the termination mortality buffer
+
+         ! summarize all of the mortality fluxes by PFT
+         i_pft = 0
+         i_scls = 0
+         i_scpf = 0
+         do i_pft = 1, numpft
+            i_pft = i_pft + 1
+            do i_scls = 1,nlevsclass
+               i_scls = i_scls + 1
+               i_scpf = (i_pft-1)*nlevsclass + i_scls
+
+               ! imort on its own
+               ats_m4_si_scpf_array(io_si,i_scpf) = sites(s)%imort_rate(i_scls, i_pft)
+               ! fire mortality from the site-level diagnostic rates
+               ats_m5_si_scpf_array(io_si,i_scpf) = sites(s)%fmort_rate_canopy(i_scls, i_pft) + &
+                     sites(s)%fmort_rate_ustory(i_scls, i_pft)
+
+               !
+               ! termination mortality. sum of canopy and understory indices
+               ats_m6_si_scpf_array(io_si,i_scpf) = (sites(s)%term_nindivs_canopy(i_scls,i_pft) + &
+                                               sites(s)%term_nindivs_ustory(i_scls,i_pft)) * days_per_year
+
+               ats_mortality_si_pft_array(io_si,i_pft) = ats_mortality_si_pft_array(io_si,i_pft) + &
+                    ats_m1_si_scpf_array(io_si,i_scpf) + &
+                    ats_m2_si_scpf_array(io_si,i_scpf) + &
+                    ats_m3_si_scpf_array(io_si,i_scpf) + &
+                    ats_m4_si_scpf_array(io_si,i_scpf) + &
+                    ats_m5_si_scpf_array(io_si,i_scpf) + &
+                    ats_m6_si_scpf_array(io_si,i_scpf) + &
+                    ats_m7_si_scpf_array(io_si,i_scpf) + &
+                    ats_m8_si_scpf_array(io_si,i_scpf)
+
+            end do ! size-class loop
+         end do ! pft loop
+       end do ! site loop
+
+       deallocate(ats_m1_si_scpf_array)
+       deallocate(ats_m2_si_scpf_array)
+       deallocate(ats_m3_si_scpf_array)
+       deallocate(ats_m4_si_scpf_array)
+       deallocate(ats_m5_si_scpf_array)
+       deallocate(ats_m6_si_scpf_array)
+       deallocate(ats_m7_si_scpf_array)
+       deallocate(ats_m8_si_scpf_array)
+
+     end subroutine calculate_mortality
+
+     subroutine calculate_lai(nc, nsites, num_scls, ats_lai_si_age_array) BIND(C)
+
+       use FatesInterfaceMod        , only : numpft_fates     => numpft
+       use FatesInterfaceMod        , only : nlevsclass
+       use EDtypesMod               , only : nfsc
+       use FatesLitterMod           , only : ncwd
+       use EDtypesMod               , only : ican_upper
+       use EDtypesMod               , only : ican_ustory
+       use FatesSizeAgeTypeIndicesMod, only : get_sizeage_class_index
+       use FatesSizeAgeTypeIndicesMod, only : get_sizeagepft_class_index
+       use FatesSizeAgeTypeIndicesMod, only : get_agepft_class_index
+       use FatesSizeAgeTypeIndicesMod, only : get_age_class_index
+       use FatesSizeAgeTypeIndicesMod, only : get_height_index
+       use FatesSizeAgeTypeIndicesMod, only : sizetype_class_index
+       use EDTypesMod               , only : nlevleaf
+       use EDParamsMod              , only : ED_val_history_height_bin_edges
+       use EDtypesMod               , only : ed_cohort_type
+       use EDtypesMod               , only : ed_patch_type
+       use EDtypesMod               , only : AREA
+       use EDtypesMod               , only : AREA_INV
+       use FatesConstantsMod        , only : g_per_kg
+       use PRTGenericMod            , only : leaf_organ, fnrt_organ, sapw_organ
+       use PRTGenericMod            , only : struct_organ, store_organ, repro_organ
+       use PRTGenericMod            , only : all_carbon_elements
+       
+       implicit none
+
+       integer(C_INT),intent(in):: nc   ! Clump
+       integer (C_INT), value :: nsites
+       integer (C_INT), value :: num_scls
+      !integer (C_INT), value :: numpft ! is this required OR Is it taken from FATES as the assignment indicates in the first line?       
+
+ 
+       ! patch age class variable
+       ! ELM-FATES equivalent variable: vname = LAI_BY_AGE. long = leaf area index by age bin. units='m2/m2', vtype=site_age_r8, index = ih_lai_si_age
+       real (C_DOUBLE),dimension(*), intent(inout) :: ats_lai_si_age_array ! Units: m2/m2 
+
+       integer :: s, scpf, scls
+       real(r8) :: sapw_c, struct_c, leaf_c
+       real(r8) :: fnrt_c, store_c
+       real(r8) :: total_c, alive_c
+       integer  :: ft               ! functional type index
+       type(ed_patch_type),pointer  :: cpatch
+       type(ed_cohort_type),pointer :: ccohort
+       real(r8) :: n_density   ! individual of cohort per m2.
+       real(r8) :: n_perm2     ! individuals per m2 for the whole column
+       integer :: io_si        ! io_si is input/output array index for site
+       integer :: io_pa        ! io_pa is input/output array index for patch
+
+       if (nsites.ne.fates(1)%nsites) then
+          write(iulog,*) 'Number of sites provided by ATS does not match FATES'
+          write(iulog,*) 'Aborting'
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       end if
+
+       if (num_scls.ne.nlevsclass) then
+          write(iulog,*) 'Number of size classes provided by ATS does not match FATES'
+          write(iulog,*) 'Aborting'
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       end if
+ 
+      io_si = 0 ! index for site
+      io_pa = 0 ! index for patch
+      do s = 1,nsites
+         
+         io_si  = io_si + 1 
+
+         cpatch => sites(s)%oldest_patch
+         do while(associated(cpatch))
+            
+            io_pa = io_pa + 1  
+
+            cpatch%age_class  = get_age_class_index(cpatch%age)
+
+            ! Increment some patch-age-resolved diagnostics
+            ats_lai_si_age_array(io_si,cpatch%age_class) = ats_lai_si_age_array(io_si,cpatch%age_class) &
+                  + sum(cpatch%tlai_profile(:,:,:)) * cpatch%area
+
+            end associate
+
+            cpatch => cpatch%younger
+         end do !patch loop
+       end do ! site loop
+       
+     end subroutine calculate_lai
 
 !    ! ====================================================================================
 
